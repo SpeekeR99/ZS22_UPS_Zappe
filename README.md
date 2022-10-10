@@ -1,1 +1,1 @@
-# UPS_22ZS_Zappe
+# Semestrální práce z KIV/UPS (ZS 2022)
