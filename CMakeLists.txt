@@ -3,4 +3,4 @@ project(Hra_test C)
 
 set(CMAKE_C_STANDARD 99)
 
-add_executable(Hra_test main.c)
+add_executable(Hra_test server/game/main.c)
