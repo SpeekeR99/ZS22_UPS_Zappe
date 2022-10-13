@@ -13,9 +13,11 @@ int main(int argc, char *argv[]) {
     int client_socket;
     int return_value;
     char buf[100];
+    int filled = 0;
     int len_addr;
     struct sockaddr_in my_addr;
     int a2read;
+    fd_set main_sock, tests_in, tests_out;
 
     if (argc != 2)
         printf("Usage: %s <username>", argv[0]);
@@ -39,20 +41,37 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-//    send(client_socket, username, strlen(username), 0);
+    FD_ZERO(&main_sock);
+    FD_SET(client_socket, &main_sock);
+    FD_SET(STDIN_FILENO, &main_sock);
+
+    char msg[100] = "USERNAME|";
+    strcat(msg, username);
+    send(client_socket, msg, strlen(msg), 0);
 
     for (;;) {
+        tests_in = main_sock;
         for (int i = 0; i < 100; i++)
             buf[i] = 0;
-        printf("%s: ", username);
-        scanf("%s", buf);
-        if (!strcmp(buf, "exit"))
-            break;
-        send(client_socket, buf, strlen(buf), 0);
-        ioctl(client_socket, FIONREAD, &a2read);
-        if (a2read > 0) {
-            recv(client_socket, buf, 100, 0);
-            printf("Server: %s\n", buf);
+
+        return_value = select(FD_SETSIZE, &tests_in, NULL, NULL, NULL);
+        if (return_value < 0) {
+            printf("Select ERR\n");
+            return -1;
+        }
+        if (FD_ISSET(client_socket, &tests_in)) {
+            printf("SOCKET\n");
+            ioctl(client_socket, FIONREAD, &a2read);
+            recv(client_socket, buf, a2read, 0);
+            printf("%s", buf);
+        }
+        else if (FD_ISSET(STDIN_FILENO, &tests_in)) {
+            read(STDIN_FILENO, buf, 100);
+            if (strcmp(buf, "exit\n") == 0) {
+            printf("Ukoncuji chat\n");
+                return 0;
+            }
+            send(client_socket, buf, strlen(buf), 0);
         }
     }
 
