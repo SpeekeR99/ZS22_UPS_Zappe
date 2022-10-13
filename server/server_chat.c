@@ -19,13 +19,19 @@ void shutdown_server(char ***usernames) {
     }
     free(*usernames);
     printf("Ukoncuji server\n");
-    exit(0);
+    exit(EXIT_SUCCESS);
 }
 
 void set_username(int fd, char *buffer, fd_set *client_socks, int server_socket, char ***usernames) {
     char *username = strtok(buffer, "|");
     username = strtok(NULL, "|");
-    (*usernames)[fd] = (char *) malloc(strlen(username) + 1);
+    if ((*usernames)[fd]) {
+        printf("Uzivatel %d se pokousi zmenit jmeno, ale uz jmeno ma\n", fd);
+        char *msg = "ERROR|Uz jste si zvolil/a jmeno\n";
+        send(fd, msg, strlen(msg), 0);
+        return;
+    }
+    (*usernames)[fd] = (char *) calloc(strlen(username) + 1, 1);
     strcpy((*usernames)[fd], username);
     printf("Uzivatel %s se pripojil/a\n", username);
     for (int i = 3; i < FD_SETSIZE; i++) {
@@ -80,13 +86,13 @@ void broadcast_message(int fd, char *buffer, fd_set *client_socks, int server_so
 int main(int argc, char *argv[]) {
     if (argc != 2) {
         printf("Pouziti: %s <port>\n", argv[0]);
-        return 1;
+        return EXIT_FAILURE;
     }
 
     int server_socket, client_socket, fd, len_addr, a2read;
     char buffer[BUFFER_LEN], **usernames = calloc(FD_SETSIZE, sizeof(char *));
     struct sockaddr_in my_addr, peer_addr;
-    fd_set client_socks, readfds;
+    fd_set client_socks, read_fds;
 
     char *known_server_commands[] = {
             "exit\n"
@@ -133,16 +139,16 @@ int main(int argc, char *argv[]) {
     FD_SET(STDIN_FILENO, &client_socks);
 
     for (;;) {
-        readfds = client_socks;
+        read_fds = client_socks;
         for (int i = 0; i < BUFFER_LEN; i++)
             buffer[i] = 0;
 
-        if (select(FD_SETSIZE, &readfds, NULL, NULL, NULL) < 0) {
+        if (select(FD_SETSIZE, &read_fds, NULL, NULL, NULL) < 0) {
             printf("Select ERR\n");
             return EXIT_FAILURE;
         }
 
-        if (FD_ISSET(STDIN_FILENO, &readfds)) {
+        if (FD_ISSET(STDIN_FILENO, &read_fds)) {
             read(STDIN_FILENO, buffer, BUFFER_LEN);
             for (int i = 0; i < sizeof(known_server_commands) / sizeof(char *); i++) {
                 if (!strcmp(buffer, known_server_commands[i])) {
@@ -153,7 +159,7 @@ int main(int argc, char *argv[]) {
         }
         else {
             for (fd = 3; fd < FD_SETSIZE; fd++) {
-                if (FD_ISSET(fd, &readfds)) {
+                if (FD_ISSET(fd, &read_fds)) {
                     if (fd == server_socket) {
                         client_socket = accept(server_socket, (struct sockaddr *) &peer_addr, &len_addr);
                         FD_SET(client_socket, &client_socks);
@@ -184,6 +190,8 @@ int main(int argc, char *argv[]) {
                             close(fd);
                             FD_CLR(fd, &client_socks);
                             printf("Uzivatel %s se odpojil/a\n", usernames[fd]);
+                            free(usernames[fd]);
+                            usernames[fd] = NULL;
                         }
                     }
                 }
@@ -191,5 +199,5 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    return 0;
+    return EXIT_SUCCESS;
 }

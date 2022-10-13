@@ -8,74 +8,78 @@
 #include <sys/ioctl.h>
 #include <netinet/in.h>
 
+#define BUFFER_LEN 1024
+
 int main(int argc, char *argv[]) {
-    char *username;
-    int client_socket;
-    int return_value;
-    char buf[100];
-    int filled = 0;
-    int len_addr;
-    struct sockaddr_in my_addr;
-    int a2read;
-    fd_set main_sock, tests_in, tests_out;
-
-    if (argc != 2)
-        printf("Usage: %s <username>", argv[0]);
-    username = argv[1];
-
+    if (argc != 4) {
+        printf("Pouzit: %s <ip> <port> <username>\n", argv[0]);
+        return EXIT_FAILURE;
+    }
+    printf("Napiste \"help\" pro napovedu\n");
     printf("Napiste \"exit\" pro ukonceni chatu\n");
+
+    int client_socket, len_addr, a2read;
+    char buffer[BUFFER_LEN], *username = argv[3];
+    struct sockaddr_in my_addr;
+    fd_set main_sock, read_fds;
 
     client_socket = socket(AF_INET, SOCK_STREAM, 0);
 
     memset(&my_addr, 0, sizeof(struct sockaddr_in));
 
     my_addr.sin_family = AF_INET;
-    my_addr.sin_port = htons(10000);
-    my_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    my_addr.sin_port = htons(atoi(argv[2]));
+    my_addr.sin_addr.s_addr = inet_addr(argv[1]);
 
-    return_value = connect(client_socket, (struct sockaddr *) &my_addr, sizeof(struct sockaddr_in));
-    if (!return_value)
+    if (!connect(client_socket, (struct sockaddr *) &my_addr, sizeof(struct sockaddr_in)))
         printf("Uspesne pripojeno k serveru\n");
     else {
         printf("Pripojeni k serveru se nezdarilo\n");
-        return -1;
+        return EXIT_FAILURE;
     }
 
     FD_ZERO(&main_sock);
     FD_SET(client_socket, &main_sock);
     FD_SET(STDIN_FILENO, &main_sock);
 
-    char msg[100] = "USERNAME|";
+    char msg[BUFFER_LEN] = "USERNAME|";
     strcat(msg, username);
     send(client_socket, msg, strlen(msg), 0);
 
     for (;;) {
-        tests_in = main_sock;
-        for (int i = 0; i < 100; i++)
-            buf[i] = 0;
+        read_fds = main_sock;
+        for (int i = 0; i < BUFFER_LEN; i++)
+            buffer[i] = 0;
 
-        return_value = select(FD_SETSIZE, &tests_in, NULL, NULL, NULL);
-        if (return_value < 0) {
+        if (select(FD_SETSIZE, &read_fds, NULL, NULL, NULL) < 0) {
             printf("Select ERR\n");
-            return -1;
+            return EXIT_FAILURE;
         }
-        if (FD_ISSET(client_socket, &tests_in)) {
+        if (FD_ISSET(client_socket, &read_fds)) {
             ioctl(client_socket, FIONREAD, &a2read);
             if (a2read == 0) {
                 printf("Server je nedostupny\n");
                 break;
             }
-            recv(client_socket, buf, a2read, 0);
-            printf("%s", buf);
+            recv(client_socket, buffer, a2read, 0);
+            printf("%s", buffer);
         }
-        else if (FD_ISSET(STDIN_FILENO, &tests_in)) {
-            read(STDIN_FILENO, buf, 100);
-            if (strcmp(buf, "exit\n") == 0) {
+        else if (FD_ISSET(STDIN_FILENO, &read_fds)) {
+            read(STDIN_FILENO, buffer, BUFFER_LEN);
+            if (!strcmp(buffer, "exit\n")) {
                 break;
             }
-            send(client_socket, buf, strlen(buf), 0);
+            if (!strcmp(buffer, "help\n")) {
+                printf("Dostupne prikazy:\n");
+                printf("\"help\" - zobrazi napovedu\n");
+                printf("\"LIST\" - zobrazi seznam pripojenych uzivatelu\n");
+                printf("\"MSG|<zprava>\" - posle zpravu vsem pripojenym uzivatelum\n");
+                printf("\"exit\" - ukonci chat\n");
+                continue;
+            }
+            send(client_socket, buffer, strlen(buffer), 0);
         }
     }
     printf("Ukoncuji chat\n");
-    return 0;
+    return EXIT_SUCCESS;
 }
