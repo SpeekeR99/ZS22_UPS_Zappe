@@ -68,8 +68,7 @@ int main(int argc, char *argv[]) {
         if (FD_ISSET(STDIN_FILENO, &tests)) {
             read(STDIN_FILENO, buf, 100);
             if (strcmp(buf, "exit\n") == 0) {
-                printf("Ukoncuji server\n");
-                return 0;
+                break;
             }
         }
         else {
@@ -87,7 +86,19 @@ int main(int argc, char *argv[]) {
                                 char *username = strtok(buf, "|");
                                 username = strtok(NULL, "|");
                                 strcpy(usernames[fd], username);
-                                printf("Uzivatel %s se pripojil\n", username);
+                                printf("Uzivatel %s se pripojil/a\n", username);
+                                for (int i = 3; i < FD_SETSIZE; i++) {
+                                    if (FD_ISSET(i, &client_socks)) {
+                                        if (i != server_socket && i != fd) {
+                                            char *msg = " se pripojil/a\n";
+                                            char *actual_msg = malloc(strlen(msg) + strlen(username) + 1);
+                                            strcpy(actual_msg, username);
+                                            strcat(actual_msg, msg);
+                                            send(i, actual_msg, strlen(actual_msg), 0);
+                                            free(actual_msg);
+                                        }
+                                    }
+                                }
                             }
                             else {
                                 for (int i = 3; i < FD_SETSIZE; i++) {
@@ -105,15 +116,27 @@ int main(int argc, char *argv[]) {
                                 }
                             }
                         } else {
+                            for (int i = 3; i < FD_SETSIZE; i++) {
+                                if (FD_ISSET(i, &client_socks)) {
+                                    if (i != server_socket && i != fd) {
+                                        char *msg = " se odpojil/a\n";
+                                        char *actual_msg = malloc(strlen(msg) + strlen(usernames[fd]) + 1);
+                                        strcpy(actual_msg, usernames[fd]);
+                                        strcat(actual_msg, msg);
+                                        send(i, actual_msg, strlen(actual_msg), 0);
+                                        free(actual_msg);
+                                    }
+                                }
+                            }
                             close(fd);
                             FD_CLR(fd, &client_socks);
-                            printf("Uzivatel %s se odpojil\n", usernames[fd]);
+                            printf("Uzivatel %s se odpojil/a\n", usernames[fd]);
                         }
                     }
                 }
             }
         }
     }
-
+    printf("Ukoncuji server\n");
     return 0;
 }

@@ -60,20 +60,22 @@ int main(int argc, char *argv[]) {
             return -1;
         }
         if (FD_ISSET(client_socket, &tests_in)) {
-            printf("SOCKET\n");
             ioctl(client_socket, FIONREAD, &a2read);
+            if (a2read == 0) {
+                printf("Server je nedostupny\n");
+                break;
+            }
             recv(client_socket, buf, a2read, 0);
             printf("%s", buf);
         }
         else if (FD_ISSET(STDIN_FILENO, &tests_in)) {
             read(STDIN_FILENO, buf, 100);
             if (strcmp(buf, "exit\n") == 0) {
-            printf("Ukoncuji chat\n");
-                return 0;
+                break;
             }
             send(client_socket, buf, strlen(buf), 0);
         }
     }
-
+    printf("Ukoncuji chat\n");
     return 0;
 }
