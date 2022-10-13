@@ -54,6 +54,8 @@ int main(int argc, char *argv[]) {
 
     for (;;) {
         tests = client_socks;
+        FD_SET(STDIN_FILENO, &tests);
+
         for (int i = 0; i < 100; i++)
             buf[i] = 0;
 
@@ -63,36 +65,50 @@ int main(int argc, char *argv[]) {
             return -1;
         }
 
-        for (fd = 3; fd < FD_SETSIZE; fd++) {
-            if (FD_ISSET(fd, &tests)) {
-                if (fd == server_socket) {
-                    client_socket = accept(server_socket, (struct sockaddr *) &peer_addr, &len_addr);
-                    FD_SET(client_socket, &client_socks);
-                } else {
-                    ioctl(fd, FIONREAD, &a2read);
-                    if (a2read > 0) {
-                        return_value = recv(fd, buf, a2read, 0);
-                        printf("Prijato od uzivatele %s: %s\n", usernames[fd], buf);
-                        if (strstr(buf, username_cmd)) {
-                            char *username = strtok(buf, "|");
-                            username = strtok(NULL, "|");
-                            strcpy(usernames[fd], username);
-                            printf("Uzivatel %s se pripojil\n", username);
-                        }
-                        else {
-                            for (int i = 3; i < FD_SETSIZE; i++) {
-                                if (FD_ISSET(i, &client_socks)) {
-                                    if (i != server_socket && i != fd) {
-                                        printf("Odeslano uzivateli %s: %s\n", usernames[i], buf);
-                                        send(i, buf, return_value, 0);
+        if (FD_ISSET(STDIN_FILENO, &tests)) {
+            read(STDIN_FILENO, buf, 100);
+            if (strcmp(buf, "exit\n") == 0) {
+                printf("Ukoncuji server\n");
+                return 0;
+            }
+        }
+        else {
+            for (fd = 3; fd < FD_SETSIZE; fd++) {
+                if (FD_ISSET(fd, &tests)) {
+                    if (fd == server_socket) {
+                        client_socket = accept(server_socket, (struct sockaddr *) &peer_addr, &len_addr);
+                        FD_SET(client_socket, &client_socks);
+                    } else {
+                        ioctl(fd, FIONREAD, &a2read);
+                        if (a2read > 0) {
+                            return_value = recv(fd, buf, a2read, 0);
+                            printf("Prijato od uzivatele %s: %s\n", usernames[fd], buf);
+                            if (strstr(buf, username_cmd)) {
+                                char *username = strtok(buf, "|");
+                                username = strtok(NULL, "|");
+                                strcpy(usernames[fd], username);
+                                printf("Uzivatel %s se pripojil\n", username);
+                            }
+                            else {
+                                for (int i = 3; i < FD_SETSIZE; i++) {
+                                    if (FD_ISSET(i, &client_socks)) {
+                                        if (i != server_socket && i != fd) {
+                                            char *actual_msg = malloc(strlen(buf) + strlen(usernames[fd]) + 3);
+                                            strcpy(actual_msg, usernames[fd]);
+                                            strcat(actual_msg, ": ");
+                                            strcat(actual_msg, buf);
+                                            printf("Odeslano uzivateli %s: %s\n", usernames[i], actual_msg);
+                                            send(i, actual_msg, strlen(actual_msg), 0);
+                                            free(actual_msg);
+                                        }
                                     }
                                 }
                             }
+                        } else {
+                            close(fd);
+                            FD_CLR(fd, &client_socks);
+                            printf("Uzivatel %s se odpojil\n", usernames[fd]);
                         }
-                    } else {
-                        close(fd);
-                        FD_CLR(fd, &client_socks);
-                        printf("Uzivatel %s se odpojil\n", usernames[fd]);
                     }
                 }
             }
