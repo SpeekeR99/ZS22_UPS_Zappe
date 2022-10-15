@@ -12,7 +12,7 @@
 
 int main(int argc, char *argv[]) {
     if (argc != 4) {
-        printf("Pouzit: %s <ip> <port> <username>\n", argv[0]);
+        printf("Pouziti: %s <ip> <port> <username>\n", argv[0]);
         return EXIT_FAILURE;
     }
     printf("Napiste \"help\" pro napovedu\n");
