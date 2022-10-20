@@ -33,13 +33,13 @@ game *init_game(uint id) {
 }
 
 void join_game(game *game, player *player) {
-    if (game_transitions[game->state][G_E_wAIT] != G_S_NOT_ALLOWED)
+    if (game_transitions[game->state][G_E_WAIT] != G_S_NOT_ALLOWED)
         game->state = game_transitions[game->state][G_E_WAIT];
     else
-        // uzivatel je debil
+        ;// uzivatel je debil
 
-    if (!game->player1) game->player1 = player;
-    else if (!game->player2) game->player2 = player;
+    if (!(game->player1)) game->player1 = player;
+    else if (!(game->player2)) game->player2 = player;
 
     if (game->player1 && game->player2)
         start_game(game);
@@ -48,15 +48,11 @@ void join_game(game *game, player *player) {
 void start_game(game *game) {
     if (game_transitions[game->state][G_E_PLAY] != G_S_NOT_ALLOWED)
         game->state = game_transitions[game->state][G_E_PLAY];
-    else
-        // uzivatel je debil
 }
 
 void end_game(game *game) {
     if (game_transitions[game->state][G_E_FINISH] != G_S_NOT_ALLOWED)
         game->state = game_transitions[game->state][G_E_FINISH];
-    else
-        // uzivatel je debil
 }
 
 int free_game(game **game) {
