@@ -25,3 +25,11 @@ player_state player_transitions[PLAYER_STATES_COUNT][PLAYER_EVENTS_COUNT] = {
         [P_S_IN_GAME_ON_TURN][P_E_DISCONNECT] = P_S_DISCONNECTED,
         [P_S_DISCONNECTED][P_E_PLAY] = P_S_IN_GAME
 };
+
+int evaluate_hand(player *player) {
+    //
+}
+
+int reroll_hand(player *player, const int *indices) {
+    //
+}

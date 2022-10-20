@@ -1,8 +1,8 @@
-#ifndef SERVER_PLAYER_H
-#define SERVER_PLAYER_H
-
 #include "typedefs.h"
 #include "game.h"
+
+#ifndef SERVER_PLAYER_H
+#define SERVER_PLAYER_H
 
 #define PLAYER_STATES_COUNT 5
 #define PLAYER_EVENTS_COUNT 3
@@ -34,5 +34,8 @@ typedef struct the_player {
     uint score;
     player_state state;
 } player;
+
+int evaluate_hand(player *player);
+int reroll_hand(player *player, const int *indices);
 
 #endif

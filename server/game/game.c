@@ -25,33 +25,38 @@ game_state game_transitions[GAME_STATES_COUNT][GAME_EVENTS_COUNT] = {
         [G_S_PAUSED][G_E_FINISH] = G_S_FINISHED
 };
 
-game *init_game(uint id, player *player1, player *player2) {
+game *init_game(uint id) {
     game *temp = (game *) calloc(1, sizeof(game));
     temp->id = id;
-    temp->player1 = player1;
-    temp->player2 = player2;
     temp->state = G_S_INIT;
     return temp;
 }
 
+void join_game(game *game, player *player) {
+    if (game_transitions[game->state][G_E_wAIT] != G_S_NOT_ALLOWED)
+        game->state = game_transitions[game->state][G_E_WAIT];
+    else
+        // uzivatel je debil
+
+    if (!game->player1) game->player1 = player;
+    else if (!game->player2) game->player2 = player;
+
+    if (game->player1 && game->player2)
+        start_game(game);
+}
+
 void start_game(game *game) {
-    if (transitions[game->state][G_E_PLAY] != G_S_NOT_ALLOWED) {
-        game->state = transitions[game->state][G_E_PLAY];
-    }
+    if (game_transitions[game->state][G_E_PLAY] != G_S_NOT_ALLOWED)
+        game->state = game_transitions[game->state][G_E_PLAY];
+    else
+        // uzivatel je debil
 }
 
 void end_game(game *game) {
-    if (transitions[game->state][G_E_QUIT] != G_S_NOT_ALLOWED) {
-        game->state = transitions[game->state][G_E_QUIT];
-    }
-}
-
-int evaluate_hand(player *player) {
-    //
-}
-
-int reroll_hand(player *player, const int *indices) {
-    //
+    if (game_transitions[game->state][G_E_FINISH] != G_S_NOT_ALLOWED)
+        game->state = game_transitions[game->state][G_E_FINISH];
+    else
+        // uzivatel je debil
 }
 
 int free_game(game **game) {

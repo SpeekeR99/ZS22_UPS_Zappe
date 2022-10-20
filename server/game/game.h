@@ -1,9 +1,9 @@
-#ifndef SERVER_GAME_H
-#define SERVER_GAME_H
-
 #include <stdlib.h>
 #include "typedefs.h"
 #include "player.h"
+
+#ifndef SERVER_GAME_H
+#define SERVER_GAME_H
 
 #define GAME_STATES_COUNT 6
 #define GAME_EVENTS_COUNT 4
@@ -31,11 +31,10 @@ typedef struct the_game {
     game_state state;
 } game;
 
-game *init_game(uint id, player *player1, player *player2);
+game *init_game(uint id);
+void join_game(game *game, player *player);
 void start_game(game *game);
 void end_game(game *game);
-int evaluate_hand(player *player);
-int reroll_hand(player *player, const int *indices);
 int free_game(game **game);
 
 #endif
