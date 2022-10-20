@@ -14,13 +14,16 @@ typedef enum the_player_state {
     P_S_INIT = 1,
     P_S_WAITING = 2,
     P_S_IN_GAME = 3,
-    P_S_DISCONNECTED = 4
+    P_S_IN_GAME_ON_TURN = 4,
+    P_S_DISCONNECTED = 5
 } player_state;
 
 typedef enum the_player_event {
     P_E_WAIT = 0,
     P_E_PLAY = 1,
-    P_E_DISCONNECT = 2
+    P_E_YOUR_TURN = 2,
+    P_E_PLAYED_TURN = 3,
+    P_E_DISCONNECT = 4
 } player_event;
 
 typedef struct the_player {

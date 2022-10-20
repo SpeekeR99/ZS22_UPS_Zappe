@@ -10,18 +10,18 @@
 
 typedef enum the_game_state {
     G_S_NOT_ALLOWED = 0,
-    G_S_INNIT = 1,
+    G_S_INIT = 1,
     G_S_WAITING = 2,
     G_S_PLAYING = 3,
-    G_S_PAUSE = 4,
-    G_S_QUIT = 5
+    G_S_PAUSED = 4,
+    G_S_FINISHED = 5
 } game_state;
 
 typedef enum the_game_event {
     G_E_WAIT = 0,
     G_E_PLAY = 1,
     G_E_PAUSE = 2,
-    G_E_QUIT = 3
+    G_E_FINISH = 3
 } game_event;
 
 typedef struct the_game {
