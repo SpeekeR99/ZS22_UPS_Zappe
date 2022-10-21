@@ -26,13 +26,13 @@ typedef enum the_game_event {
 
 typedef struct the_game {
     uint id;
-    player *player1;
-    player *player2;
+    struct the_player *player1;
+    struct the_player *player2;
     game_state state;
 } game;
 
 game *init_game(uint id);
-void join_game(game *game, player *player);
+void join_game(game *game, struct the_player *player);
 void start_game(game *game);
 void end_game(game *game);
 void free_game(game **game);

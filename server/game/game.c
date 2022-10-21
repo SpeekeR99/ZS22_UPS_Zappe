@@ -1,6 +1,6 @@
 #include "game.h"
 
-const char * const state_str[] = {
+const char * const game_state_str[] = {
         [G_S_NOT_ALLOWED] = "not allowed",
         [G_S_INIT] = "init",
         [G_S_WAITING] = "waiting",
@@ -9,7 +9,7 @@ const char * const state_str[] = {
         [G_S_FINISHED] = "finished"
 };
 
-const char * const event_str[] = {
+const char * const game_event_str[] = {
         [G_E_WAIT] = "wait",
         [G_E_PLAY] = "play",
         [G_E_PAUSE] = "pause",
@@ -33,7 +33,7 @@ game *init_game(uint id) {
     return temp;
 }
 
-void join_game(game *game, player *player) {
+void join_game(game *game, struct the_player *player) {
     if (game_transitions[game->state][G_E_WAIT] != G_S_NOT_ALLOWED)
         game->state = game_transitions[game->state][G_E_WAIT];
     else

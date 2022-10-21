@@ -31,7 +31,7 @@ typedef enum the_player_event {
 typedef struct the_player {
     int socket;
     char name[MAX_NAME_LEN];
-    game *game;
+    struct the_game *game;
     byte hand[NUM_OF_DICE];
     uint score;
     player_state state;

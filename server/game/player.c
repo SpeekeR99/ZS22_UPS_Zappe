@@ -1,6 +1,6 @@
 #include "player.h"
 
-const char * const state_str[] = {
+const char * const player_state_str[] = {
         [P_S_NOT_ALLOWED] = "not allowed",
         [P_S_INIT] = "init",
         [P_S_WAITING] = "waiting",
@@ -8,7 +8,7 @@ const char * const state_str[] = {
         [P_S_DISCONNECTED]  = "disconnected"
 };
 
-const char * const event_str[] = {
+const char * const player_event_str[] = {
         [P_E_WAIT] = "wait",
         [P_E_PLAY] = "play",
         [P_E_YOUR_TURN] = "your turn",
