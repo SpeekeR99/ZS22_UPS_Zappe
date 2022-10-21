@@ -38,6 +38,12 @@ player *init_player(int socket, const char *name) {
     return temp;
 }
 
+void randomize_hand(player *player) {
+    for (int i = 0; i < NUM_OF_DICE; i++) {
+        player->hand[i] = roll_a_die();
+    }
+}
+
 int reroll_hand(player *player, const int *indices, int indices_len) {
     for (int i = 0; i < indices_len; i++) {
         if (indices[i] < 0 || indices[i] >= NUM_OF_DICE) return FAILURE;

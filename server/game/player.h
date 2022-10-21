@@ -38,6 +38,7 @@ typedef struct the_player {
 } player;
 
 player *init_player(int socket, const char *name);
+void randomize_hand(player *player);
 int reroll_hand(player *player, const int *indices, int indices_len);
 int evaluate_hand(player *player);
 void free_player(player **player);

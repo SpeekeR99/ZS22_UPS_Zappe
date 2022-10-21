@@ -34,6 +34,8 @@ typedef struct the_game {
 game *init_game(uint id);
 void join_game(game *game, struct the_player *player);
 void start_game(game *game);
+void game_loop(game *game);
+void end_of_turn(game *game);
 void end_game(game *game);
 void free_game(game **game);
 
