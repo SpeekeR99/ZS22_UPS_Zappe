@@ -1,8 +1,10 @@
 #ifndef SERVER_PLAYER_H
 #define SERVER_PLAYER_H
 
+#include <string.h>
 #include "typedefs.h"
 #include "game.h"
+#include "random.h"
 
 #define PLAYER_STATES_COUNT 6
 #define PLAYER_EVENTS_COUNT 5
@@ -35,7 +37,9 @@ typedef struct the_player {
     player_state state;
 } player;
 
+player *init_player(int socket, const char *name);
+int reroll_hand(player *player, const int *indices, int indices_len);
 int evaluate_hand(player *player);
-int reroll_hand(player *player, const int *indices);
+void free_player(player **player);
 
 #endif

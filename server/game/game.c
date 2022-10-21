@@ -27,6 +27,7 @@ game_state game_transitions[GAME_STATES_COUNT][GAME_EVENTS_COUNT] = {
 
 game *init_game(uint id) {
     game *temp = (game *) calloc(1, sizeof(game));
+    if (!temp) return NULL;
     temp->id = id;
     temp->state = G_S_INIT;
     return temp;
@@ -55,8 +56,7 @@ void end_game(game *game) {
         game->state = game_transitions[game->state][G_E_FINISH];
 }
 
-int free_game(game **game) {
+void free_game(game **game) {
     free(*game);
     *game = NULL;
-    return 1;
 }

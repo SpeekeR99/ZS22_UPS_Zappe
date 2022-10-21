@@ -35,6 +35,6 @@ game *init_game(uint id);
 void join_game(game *game, player *player);
 void start_game(game *game);
 void end_game(game *game);
-int free_game(game **game);
+void free_game(game **game);
 
 #endif

@@ -26,10 +26,31 @@ player_state player_transitions[PLAYER_STATES_COUNT][PLAYER_EVENTS_COUNT] = {
         [P_S_DISCONNECTED][P_E_PLAY] = P_S_IN_GAME
 };
 
+player *init_player(int socket, const char *name) {
+    if (strlen(name) > MAX_NAME_LEN) return NULL;
+    player *temp = calloc(1, sizeof(player));
+    if (!temp) return NULL;
+    temp->socket = socket;
+    for (int i = 0; i < strlen(name); i++) {
+        temp->name[i] = name[i];
+    }
+    temp->state = P_S_INIT;
+    return temp;
+}
+
+int reroll_hand(player *player, const int *indices, int indices_len) {
+    for (int i = 0; i < indices_len; i++) {
+        if (indices[i] < 0 || indices[i] >= NUM_OF_DICE) return FAILURE;
+        player->hand[indices[i]] = roll_a_die();
+    }
+    return SUCCESS;
+}
+
 int evaluate_hand(player *player) {
     //
 }
 
-int reroll_hand(player *player, const int *indices) {
-    //
+void free_player(player **player) {
+    free(*player);
+    *player = NULL;
 }
