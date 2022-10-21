@@ -1,8 +1,8 @@
-#include "typedefs.h"
-#include "game.h"
-
 #ifndef SERVER_PLAYER_H
 #define SERVER_PLAYER_H
+
+#include "typedefs.h"
+#include "game.h"
 
 #define PLAYER_STATES_COUNT 6
 #define PLAYER_EVENTS_COUNT 5
