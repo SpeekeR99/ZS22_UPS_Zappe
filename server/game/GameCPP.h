@@ -5,18 +5,18 @@
 #include "StateMachine.h"
 #include "PlayerCPP.h"
 
-class GameCPP{
-private:
+class PlayerCPP;
+
+class GameCPP {
+public:
     std::shared_ptr<PlayerCPP> player1;
     std::shared_ptr<PlayerCPP> player2;
     GameState state;
 
-public:
     GameCPP();
-    ~GameCPP();
+    ~GameCPP() = default;
 
-    void join_game(std::shared_ptr<PlayerCPP> player);
-    void start_game();
+    void join_game(const std::shared_ptr<PlayerCPP>& player);
     void start_round();
     void end_round();
     void end_game();
