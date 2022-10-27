@@ -47,22 +47,19 @@ void join_game(game *game, struct the_player *player) {
 }
 
 void start_game(game *game) {
-    if (game_transitions[game->state][G_E_PLAY] != G_S_NOT_ALLOWED)
+    if (game_transitions[game->state][G_E_PLAY] != G_S_NOT_ALLOWED) {
         game->state = game_transitions[game->state][G_E_PLAY];
-    game_loop(game);
+        start_round(game);
+    }
 }
 
-void game_loop(game *game) {
-    while (game->state != G_S_FINISHED) {
-        randomize_hand(game->player1);
-        randomize_hand(game->player2);
+void start_round(game *game) {
+    // init players
+}
 
-        // do the game logic here
-
-        if ((game->player1->score == 3 || game->player2->score == 3) && game_transitions[game->state][G_E_FINISH] != G_S_NOT_ALLOWED)
-            game->state = game_transitions[game->state][G_E_FINISH];
-    }
-    end_game(game);
+void end_round(game *game) {
+    // evaluate
+    // end / start new round
 }
 
 void end_of_turn(game *game) {
