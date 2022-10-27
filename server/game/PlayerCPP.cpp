@@ -1,8 +1,8 @@
+#include <iostream>
 #include "PlayerCPP.h"
 
 PlayerCPP::PlayerCPP(int socket, std::string name) : socket{socket}, name{std::move(name)} {
     state = PlayerState::P_S_IN_MAIN_MENU;
-    random = std::make_shared<RandomCPP>();
 }
 
 void PlayerCPP::randomize_hand() {
@@ -13,16 +13,14 @@ void PlayerCPP::reroll_hand(const std::array<int, NUMBER_OF_DICE> &indices) {
     if (state != PlayerState::P_S_IN_GAME_CAN_PLAY) return;
 
     for (int i = 0; i < indices.size(); i++) {
-        if (indices[i]) hand[i] = random->roll_a_die();
+        if (indices[i] == 1) hand[i] = random->roll_a_die();
     }
-    state = StateMachine::transition(state, PlayerEvent::P_E_PLAY);
+    if (StateMachine::is_transition_possible(state, PlayerEvent::P_E_PLAY))
+        state = StateMachine::transition(state, PlayerEvent::P_E_PLAY);
 
-    if (game->player1->state == PlayerState::P_S_IN_GAME_CANNOT_PLAY &&
-        game->player2->state == PlayerState::P_S_IN_GAME_CANNOT_PLAY) {
-        if (StateMachine::is_transition_possible(game->state, GameEvent::G_E_END_ROUND)) {
-            game->state = StateMachine::transition(game->state, GameEvent::G_E_END_ROUND);
-            game->end_round();
-        }
+    if (game->check_if_all_players_played() && StateMachine::is_transition_possible(game->state, GameEvent::G_E_END_ROUND)) {
+        game->state = StateMachine::transition(game->state, GameEvent::G_E_END_ROUND);
+        game->end_round();
     }
 }
 
@@ -71,10 +69,10 @@ int PlayerCPP::evaluate_hand() {
             }
         }
         else {
-            if (counts[0] == 1 && counts[1] == 1 && counts[2] == 1 && counts[3] == 1 && counts[4] == 1 && score < 4) {
+            if (counts[0] == 1 && counts[1] == 1 && counts[2] == 1 && counts[3] == 1 && counts[4] == 1 && points < 4) {
                 set_score(points, which_cards, what_combination, 4, 1, 5, "Small straight");
             }
-            else if (counts[1] == 1 && counts[2] == 1 && counts[3] == 1 && counts[4] == 1 && counts[5] == 1 && score < 4) {
+            else if (counts[1] == 1 && counts[2] == 1 && counts[3] == 1 && counts[4] == 1 && counts[5] == 1 && points < 4) {
                 set_score(points, which_cards, what_combination, 5, 2, 6, "Big straight");
             }
             else if (points == 0) {
@@ -82,4 +80,5 @@ int PlayerCPP::evaluate_hand() {
             }
         }
     }
+    return points;
 }

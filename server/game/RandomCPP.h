@@ -1,6 +1,7 @@
 #pragma once
 
 #include <random>
+#include <ctime>
 
 constexpr unsigned char MAX_DIE_NUM = 6;
 constexpr unsigned char MIN_DIE_NUM = 1;

@@ -18,6 +18,7 @@ public:
 
     void join_game(const std::shared_ptr<PlayerCPP>& player);
     void start_round();
+    bool check_if_all_players_played();
     void end_round();
     void end_game();
 };
