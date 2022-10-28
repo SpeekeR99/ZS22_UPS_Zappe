@@ -16,14 +16,12 @@ int main() {
     std::cout << "Player 2 state: " << player2->state << std::endl;
 
     game->join_game(player1);
-    player1->game = game;
 
     std::cout << "Game state: " << game->state << std::endl;
     std::cout << "Player 1 state: " << player1->state << std::endl;
     std::cout << "Player 2 state: " << player2->state << std::endl;
 
     game->join_game(player2);
-    player2->game = game;
 
     std::cout << "Game state: " << game->state << std::endl;
     std::cout << "Player 1 state: " << game->player1->state << std::endl;

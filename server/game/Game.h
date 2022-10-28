@@ -7,7 +7,7 @@
 
 class Player;
 
-class Game {
+class Game : public std::enable_shared_from_this<Game> {
 public:
     std::shared_ptr<Player> player1;
     std::shared_ptr<Player> player2;

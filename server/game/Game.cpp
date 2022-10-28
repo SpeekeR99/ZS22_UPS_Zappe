@@ -9,6 +9,7 @@ void Game::join_game(const std::shared_ptr<Player>& player) {
         if (!player1) player1 = player;
         else if (!player2) player2 = player;
         player->state = StateMachine::transition(player->state, PlayerEvent::P_E_JOIN_LOBBY);
+        player->game = shared_from_this();
     }
     if (StateMachine::is_transition_possible(state, G_E_PLAY) && player1 && player2) {
         state = StateMachine::transition(state, G_E_PLAY);
