@@ -1,10 +1,10 @@
-#include "GameCPP.h"
+#include "Game.h"
 
-GameCPP::GameCPP() {
+Game::Game() {
     state = GameState::G_S_WAITING;
 }
 
-void GameCPP::join_game(const std::shared_ptr<PlayerCPP>& player) {
+void Game::join_game(const std::shared_ptr<Player>& player) {
     if (state == GameState::G_S_WAITING && StateMachine::is_transition_possible(player->state, PlayerEvent::P_E_JOIN_LOBBY)) {
         if (!player1) player1 = player;
         else if (!player2) player2 = player;
@@ -16,7 +16,7 @@ void GameCPP::join_game(const std::shared_ptr<PlayerCPP>& player) {
     }
 }
 
-void GameCPP::start_round() {
+void Game::start_round() {
     player1->randomize_hand();
     player2->randomize_hand();
     if (StateMachine::is_transition_possible(player1->state, P_E_PLAY))
@@ -25,11 +25,11 @@ void GameCPP::start_round() {
         player2->state = StateMachine::transition(player2->state, P_E_PLAY);
 }
 
-bool GameCPP::check_if_all_players_played() {
+bool Game::check_if_all_players_played() {
     return player1->state == PlayerState::P_S_IN_GAME_CANNOT_PLAY && player2->state == PlayerState::P_S_IN_GAME_CANNOT_PLAY;
 }
 
-void GameCPP::end_round() {
+void Game::end_round() {
     auto score1 = player1->evaluate_hand();
     auto score2 = player2->evaluate_hand();
     if (score1 > score2) player1->score++;
@@ -47,6 +47,6 @@ void GameCPP::end_round() {
     }
 }
 
-void GameCPP::end_game() {
+void Game::end_game() {
     // idk yet
 }

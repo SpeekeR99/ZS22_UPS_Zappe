@@ -1,13 +1,13 @@
 #include <iostream>
 #include "StateMachine.h"
-#include "GameCPP.h"
-#include "PlayerCPP.h"
+#include "Game.h"
+#include "Player.h"
 
 int main() {
-    std::shared_ptr<RandomCPP> random = std::make_shared<RandomCPP>();
-    std::shared_ptr<GameCPP> game = std::make_shared<GameCPP>();
-    std::shared_ptr<PlayerCPP> player1 = std::make_shared<PlayerCPP>(1, "Player 1");
-    std::shared_ptr<PlayerCPP> player2 = std::make_shared<PlayerCPP>(2, "Player 2");
+    std::shared_ptr<MyRandom> random = std::make_shared<MyRandom>();
+    std::shared_ptr<Game> game = std::make_shared<Game>();
+    std::shared_ptr<Player> player1 = std::make_shared<Player>(1, "Player 1");
+    std::shared_ptr<Player> player2 = std::make_shared<Player>(2, "Player 2");
     player1->random = random;
     player2->random = random;
 

@@ -6,12 +6,12 @@ set(CMAKE_CXX_STANDARD 20)
 add_executable(
         server
         server/game/main.cpp
-        server/game/GameCPP.cpp
-        server/game/GameCPP.h
-        server/game/PlayerCPP.cpp
-        server/game/PlayerCPP.h
-        server/game/RandomCPP.cpp
-        server/game/RandomCPP.h
+        server/game/Game.cpp
+        server/game/Game.h
+        server/game/Player.cpp
+        server/game/Player.h
+        server/game/MyRandom.cpp
+        server/game/MyRandom.h
         server/game/StateMachine.cpp
         server/game/StateMachine.h
 )

@@ -1,15 +1,15 @@
 #include <iostream>
-#include "PlayerCPP.h"
+#include "Player.h"
 
-PlayerCPP::PlayerCPP(int socket, std::string name) : socket{socket}, name{std::move(name)} {
+Player::Player(int socket, std::string name) : socket{socket}, name{std::move(name)} {
     state = PlayerState::P_S_IN_MAIN_MENU;
 }
 
-void PlayerCPP::randomize_hand() {
+void Player::randomize_hand() {
     for (auto &i : hand) i = random->roll_a_die();
 }
 
-void PlayerCPP::reroll_hand(const std::array<int, NUMBER_OF_DICE> &indices) {
+void Player::reroll_hand(const std::array<int, NUMBER_OF_DICE> &indices) {
     if (state != PlayerState::P_S_IN_GAME_CAN_PLAY) return;
 
     for (int i = 0; i < indices.size(); i++) {
@@ -31,7 +31,7 @@ void set_score(int &points, std::array<int, 2> &which_cards, std::string &what_c
     what_combination = combination;
 }
 
-int PlayerCPP::evaluate_hand() {
+int Player::evaluate_hand() {
     std::string what_combination;
     std::array<int, 2> which_cards{-1, -1};
     std::array<int, 6> counts = {0, 0, 0, 0, 0, 0};
