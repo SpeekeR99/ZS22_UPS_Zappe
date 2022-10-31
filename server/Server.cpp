@@ -12,6 +12,7 @@ Server::Server(int port) {
         std::cout << "OK: setsockopt" << std::endl;
 
     // Set server address
+    struct sockaddr_in server_address{};
     memset(&server_address, 0, sizeof(struct sockaddr_in));
     server_address.sin_family = AF_INET;
     server_address.sin_port = htons(port);
@@ -29,18 +30,22 @@ Server::Server(int port) {
     else
         std::cerr << "ERR: listen" << std::endl;
 
-    // Initialize client sockets
-    FD_ZERO(&client_socks);
-    FD_SET(server_socket, &client_socks);
-    FD_SET(STDIN_FILENO, &client_socks);
+    std::cout << "Server started on port " << port << std::endl;
 }
 
 Server::~Server() {
-    // Close socket
     close(server_socket);
 }
 
 void Server::run() {
+    std::cout << "Server running..." << std::endl;
+
+    // Initialize client sockets
+    fd_set client_socks, read_fds;
+    FD_ZERO(&client_socks);
+    FD_SET(server_socket, &client_socks);
+    FD_SET(STDIN_FILENO, &client_socks);
+
     for (;;) {
         // Copy client_socks to read_fds (select() modifies read_fds)
         read_fds = client_socks;
@@ -58,7 +63,9 @@ void Server::run() {
         // Check if there is activity on stdin (server commands)
         if (FD_ISSET(STDIN_FILENO, &read_fds)) {
             read(STDIN_FILENO, char_buffer, BUFFER_LEN);
-            // TODO: Handle server commands
+            if (!strcmp(char_buffer, "exit\n")) {
+                break;
+            }
         }
 
         // Check if there is activity on server socket
@@ -70,9 +77,10 @@ void Server::run() {
                     if (fd == server_socket) {
                         int client_socket;
                         socklen_t len_addr;
+                        struct sockaddr_in client_address{};
                         client_socket = accept(server_socket, (struct sockaddr *) &client_address, &len_addr);
                         FD_SET(client_socket, &client_socks);
-                        std::cout << "Pripojen novy klient: " << client_socket << std::endl;
+                        std::cout << "New client connected: " << client_socket << std::endl;
 
                     // It is a message from a client
                     } else {
@@ -82,18 +90,20 @@ void Server::run() {
                         // Client send some bytes
                         if (a2read > 0) {
                             recv(fd, char_buffer, a2read, 0);
-                            std::cout << "Prijato od uzivatele " << fd << ": " << char_buffer << std::endl;
+                            std::cout << "Received from client " << fd << ": " << char_buffer << std::endl;
                             // TODO: Handle client messages
 
                         // Client disconnected
                         } else {
                             close(fd);
                             FD_CLR(fd, &client_socks);
-                            std::cout << "Uzivatel " << fd << " se odpojil" << std::endl;
+                            std::cout << "Client " << fd << " disconnected" << std::endl;
                         }
                     }
                 }
             }
         }
     }
+
+    std::cout << "Server shutting down..." << std::endl;
 }
