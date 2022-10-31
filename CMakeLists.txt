@@ -14,4 +14,6 @@ add_executable(
         server/game/MyRandom.h
         server/game/StateMachine.cpp
         server/game/StateMachine.h
+        server/Server.cpp
+        server/Server.h
 )

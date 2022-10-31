@@ -2,6 +2,7 @@
 #include "StateMachine.h"
 #include "Game.h"
 #include "Player.h"
+#include "../Server.h"
 
 int main() {
     std::shared_ptr<MyRandom> random = std::make_shared<MyRandom>();
@@ -69,6 +70,9 @@ int main() {
 
     std::cout << "Player 1 score: " << player1->score << std::endl;
     std::cout << "Player 2 score: " << player2->score << std::endl;
+
+    std::unique_ptr<Server> server = std::make_unique<Server>(12345);
+    server->run();
 
     return EXIT_SUCCESS;
 }
