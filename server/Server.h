@@ -14,6 +14,12 @@ class Server {
 private:
     int server_socket;
     char char_buffer[BUFFER_LEN]{};
+    std::string buffer;
+
+    void clear_char_buffer();
+    void read_message(int fd);
+    void send_message(int fd, const std::string &message);
+    void recv_message(int fd, int a2read);
 
 public:
     explicit Server(int port);

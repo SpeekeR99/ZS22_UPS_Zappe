@@ -37,6 +37,27 @@ Server::~Server() {
     close(server_socket);
 }
 
+void Server::clear_char_buffer() {
+    for (char & i : char_buffer)
+        i = 0;
+}
+
+void Server::read_message(int fd) {
+    read(fd, char_buffer, BUFFER_LEN);
+    buffer = std::string(char_buffer);
+    clear_char_buffer();
+}
+
+void Server::send_message(int fd, const std::string &message) {
+    send(fd, message.c_str(), message.length(), 0);
+}
+
+void Server::recv_message(int fd, int a2read) {
+    recv(fd, char_buffer, a2read, 0);
+    buffer = std::string(char_buffer);
+    clear_char_buffer();
+}
+
 void Server::run() {
     std::cout << "Server running..." << std::endl;
 
@@ -51,8 +72,7 @@ void Server::run() {
         read_fds = client_socks;
 
         // Clear char_buffer
-        for (char & i : char_buffer)
-            i = 0;
+        clear_char_buffer();
 
         // Wait for activity on one of the sockets
         if (select(FD_SETSIZE, &read_fds, NULL, NULL, NULL) < 0) {
@@ -62,10 +82,9 @@ void Server::run() {
 
         // Check if there is activity on stdin (server commands)
         if (FD_ISSET(STDIN_FILENO, &read_fds)) {
-            read(STDIN_FILENO, char_buffer, BUFFER_LEN);
-            if (!strcmp(char_buffer, "exit\n")) {
+            read_message(STDIN_FILENO);
+            if (buffer == "exit\n")
                 break;
-            }
         }
 
         // Check if there is activity on server socket
@@ -87,10 +106,10 @@ void Server::run() {
                         int a2read;
                         ioctl(fd, FIONREAD, &a2read);
 
-                        // Client send some bytes
+                        // Client sent some bytes
                         if (a2read > 0) {
-                            recv(fd, char_buffer, a2read, 0);
-                            std::cout << "Received from client " << fd << ": " << char_buffer << std::endl;
+                            recv_message(fd, a2read);
+                            std::cout << "Received from client " << fd << ": " << buffer << std::endl;
                             // TODO: Handle client messages
 
                         // Client disconnected
