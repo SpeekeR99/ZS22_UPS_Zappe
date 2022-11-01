@@ -7,8 +7,8 @@
 int main() {
     std::shared_ptr<MyRandom> random = std::make_shared<MyRandom>();
     std::shared_ptr<Game> game = std::make_shared<Game>();
-    std::shared_ptr<Player> player1 = std::make_shared<Player>(1, "Player 1");
-    std::shared_ptr<Player> player2 = std::make_shared<Player>(2, "Player 2");
+    std::shared_ptr<Player> player1 = std::make_shared<Player>(1);
+    std::shared_ptr<Player> player2 = std::make_shared<Player>(2);
     player1->random = random;
     player2->random = random;
 

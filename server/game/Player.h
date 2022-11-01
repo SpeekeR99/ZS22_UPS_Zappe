@@ -23,7 +23,7 @@ public:
     PlayerState state;
     std::shared_ptr<MyRandom> random;
 
-    Player(int socket, std::string name);
+    explicit Player(int socket);
     ~Player() = default;
 
     void randomize_hand();

@@ -1,7 +1,7 @@
 #include <iostream>
 #include "Player.h"
 
-Player::Player(int socket, std::string name) : socket{socket}, name{std::move(name)} {
+Player::Player(int socket) : socket{socket} {
     state = PlayerState::P_S_IN_MAIN_MENU;
 }
 

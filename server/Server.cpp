@@ -58,6 +58,30 @@ void Server::recv_message(int fd, int a2read) {
     clear_char_buffer();
 }
 
+std::vector<std::string>  Server::tokenize_buffer(char delim) const {
+    std::stringstream ss(buffer);
+    std::string token;
+    std::vector<std::string> tokens;
+
+    while (std::getline(ss, token, delim))
+        tokens.push_back(token);
+
+    return tokens;
+}
+
+void Server::handle_incoming_message(int fd) {
+    std::shared_ptr<Player> player;
+    for (auto & i : players)
+        if (i->socket == fd) player = i;
+
+    std::cout << "Received message from client " << fd << " (" << player->name << ") : " << buffer << std::endl;
+
+    auto tokens = tokenize_buffer(COMMAND_DELIMITER);
+    std::string cmd = tokens[0];
+
+    std::cout << "Command: " << cmd << std::endl;
+}
+
 void Server::run() {
     std::cout << "Server running..." << std::endl;
 
@@ -99,6 +123,7 @@ void Server::run() {
                         struct sockaddr_in client_address{};
                         client_socket = accept(server_socket, (struct sockaddr *) &client_address, &len_addr);
                         FD_SET(client_socket, &client_socks);
+                        players.push_back(std::make_shared<Player>(client_socket));
                         std::cout << "New client connected: " << client_socket << std::endl;
 
                     // It is a message from a client
@@ -109,14 +134,17 @@ void Server::run() {
                         // Client sent some bytes
                         if (a2read > 0) {
                             recv_message(fd, a2read);
-                            std::cout << "Received from client " << fd << ": " << buffer << std::endl;
-                            // TODO: Handle client messages
+                            handle_incoming_message(fd);
 
                         // Client disconnected
                         } else {
                             close(fd);
                             FD_CLR(fd, &client_socks);
                             std::cout << "Client " << fd << " disconnected" << std::endl;
+                            players.erase(std::remove_if(players.begin(), players.end(),
+                                                         [fd](std::shared_ptr<Player> player) {
+                                                             return player->socket == fd;
+                                                         }), players.end());
                         }
                     }
                 }
