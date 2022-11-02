@@ -12,6 +12,7 @@ public:
     std::shared_ptr<Player> player1;
     std::shared_ptr<Player> player2;
     GameState state;
+    bool is_start_round;
 
     Game();
     ~Game() = default;

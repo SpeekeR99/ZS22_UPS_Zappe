@@ -10,7 +10,7 @@ void Player::randomize_hand() {
 }
 
 void Player::reroll_hand(const std::array<int, NUMBER_OF_DICE> &indices) {
-    if (state != PlayerState::P_S_IN_GAME_CAN_PLAY) return;
+    if (state != PlayerState::P_S_IN_GAME) return;
 
     for (int i = 0; i < indices.size(); i++) {
         if (indices[i] == 1) hand[i] = random->roll_a_die();

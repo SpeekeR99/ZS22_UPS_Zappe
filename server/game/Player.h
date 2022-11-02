@@ -22,6 +22,7 @@ public:
     unsigned int score{};
     PlayerState state;
     std::shared_ptr<MyRandom> random;
+    bool can_play;
 
     explicit Player(int socket);
     ~Player() = default;

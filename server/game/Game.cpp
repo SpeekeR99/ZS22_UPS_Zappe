@@ -1,11 +1,11 @@
 #include "Game.h"
 
 Game::Game() {
-    state = GameState::G_S_WAITING;
+    state = GameState::G_S_WAITING_FOR_PLAYERS;
 }
 
 void Game::join_game(const std::shared_ptr<Player>& player) {
-    if (state == GameState::G_S_WAITING && StateMachine::is_transition_possible(player->state, PlayerEvent::P_E_JOIN_LOBBY)) {
+    if (state == GameState::G_S_WAITING_FOR_PLAYERS && StateMachine::is_transition_possible(player->state, PlayerEvent::P_E_JOIN_LOBBY)) {
         if (!player1) player1 = player;
         else if (!player2) player2 = player;
         player->state = StateMachine::transition(player->state, PlayerEvent::P_E_JOIN_LOBBY);

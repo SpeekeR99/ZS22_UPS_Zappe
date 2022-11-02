@@ -3,9 +3,8 @@
 #include <map>
 
 enum GameState {
-    G_S_WAITING,
-    G_S_PLAYING_START_OF_ROUND,
-    G_S_PLAYING_END_OF_ROUND,
+    G_S_WAITING_FOR_PLAYERS,
+    G_S_PLAYING,
     G_S_PAUSED,
     G_S_FINISHED
 };
@@ -22,8 +21,7 @@ enum GameEvent {
 enum PlayerState {
     P_S_IN_MAIN_MENU,
     P_S_IN_LOBBY,
-    P_S_IN_GAME_CAN_PLAY,
-    P_S_IN_GAME_CANNOT_PLAY,
+    P_S_IN_GAME,
     P_S_DISCONNECTED
 };
 
@@ -31,7 +29,6 @@ enum PlayerEvent {
     P_E_JOIN_LOBBY,
     P_E_CANCEL,
     P_E_PLAY,
-    P_E_YOUR_TURN,
     P_E_DISCONNECT,
     P_E_RECONNECT,
     P_E_PLAY_AGAIN
