@@ -1,0 +1,112 @@
+Nešifrovaný textový protokol
+Oddělovač "|"
+
+<MSG>|<param1>|<param2>|...
+
+Druhy zprávy:
+	C -> S: REQUEST, KEEP_ALIVE
+	S -> C: DATA, OK, ERROR, KEEP_ALIVE
+
+Zprávy:
+	// handshake
+	Handshake:
+		C -> S: HELLO
+		S -> C: HELLO
+
+	// bezprostřední přihlášení po navázání spojení
+	Login:
+		C -> S: LOGIN|<username>
+		S -> C: OK
+		S -> C: ERROR|<err_code>
+
+	// záměrné zavření hry
+	Logout
+		C -> S: LOGOUT
+		S -> C: LOGOUT
+
+	// znovu přihlášení po nečekaném disconnectu
+	Reconnect:
+		C -> S: RECONNECT|<username>
+		S -> C: OK
+		S -> C: ERROR|<err_code>
+
+	// vytvoření nového lobby
+	Create lobby:
+		C -> S: CREATE_LOBBY
+		S -> C: OK|<lobby_id>
+		S -> C: ERROR|<err_code>
+
+	// připojení se do lobby
+	Join lobby:
+		C -> S: JOIN_LOBBY
+		S -> C: OK|<opponent_username>
+		S -> C: ERROR|<err_code>
+
+	// připojení oponenta do lobby
+	Opponent joined lobby:
+		S -> C: OPPONENT_JOINED|<opponent_username>
+		C -> S: OK
+
+	// odpojení se z lobby (ne ze hry) (tedy hráč čeká na druhého a odejde z lobby při čekání)
+	Leave lobby:
+		C -> S: LEAVE_LOBBY
+		S -> C: OK
+		S -> C: ERROR|<err_code>
+
+	// vypsání dostupných lobbies
+	List lobbies:
+		C -> S: LIST_LOBBIES
+		S -> C: OK|<lobby_id1>|<lobby_id2>|...
+		S -> C: ERROR|<err_code>
+
+	// odpojení se z probíhající hry -> vyhraje protihráč
+	Leave game:
+		C -> S: LEAVE_GAME
+		S -> C: OK
+		S -> C: ERROR|<err_code>
+
+	// hráč chce zahrát svůj tah (tedy reroll-nout určité kostky)
+	Play a turn:
+		C -> S: REROLL|<index1>|<index2>|...|<index5>
+		S -> C: OK|<number1>|<number2>|...|<number5>
+		S -> C: ERROR|<err_code>
+
+	// server informuje hráče, že je na tahu
+	Your turn:
+		S -> C: YOUR_TURN
+		C -> S: OK
+
+    // server informuje hráče, že se oponent odpojil
+    Opponent disconnected:
+        S -> C: OPPONENT_DISCONNECTED
+        C -> S: OK
+
+	// všichni si rerollnuli kostky -> aktualizovat stav všem hráčům
+	Everyone played:
+		S -> C: GAME_STATUS|<data>
+		C -> S: OK
+
+	// žádost od klienta k serveru o aktuálním stavu hry (např. po reconnectu)
+	Explicitní žádost o stav hry:
+		C -> S: GAME_STATUS
+		S -> C: OK|<data>
+		S -> C: ERROR|<err_code>
+
+	// hra je dohrána
+	Game over:
+		S -> C: GAME_OVER|<win/loss>
+		C -> S: OK
+
+	// hráč chce hrát znovu
+	Play again:
+		C -> S: PLAY_AGAIN
+		S -> C: OK
+		S -> C: ERROR|<err_code>
+
+	// ping pro kontrolu, že obě strany "žijí"
+	Keep alive:
+		C -> S: ALIVE
+		S -> C: ALIVE
+
+		S -> C: ALIVE
+		C -> S: ALIVE
