@@ -31,10 +31,17 @@ Server::Server(int port) {
         std::cerr << "ERR: listen" << std::endl;
 
     std::cout << "Server started on port " << port << std::endl;
+
+    init_commands_map();
 }
 
 Server::~Server() {
     close(server_socket);
+}
+
+void Server::init_commands_map() {
+    commands["HELLO"] = &Server::handshake;
+    commands["LOGIN"] = &Server::login;
 }
 
 void Server::clear_char_buffer() {
@@ -69,17 +76,67 @@ std::vector<std::string>  Server::tokenize_buffer(char delim) const {
     return tokens;
 }
 
-void Server::handle_incoming_message(int fd) {
+std::shared_ptr<Player> Server::get_player_by_fd(int fd) {
     std::shared_ptr<Player> player;
     for (auto & i : players)
         if (i->socket == fd) player = i;
+    return player;
+}
 
-    std::cout << "Received message from client " << fd << " (" << player->name << ") : " << buffer << std::endl;
+bool Server::is_player_logged_in(int fd) {
+    auto player = get_player_by_fd(fd);
+    return player->handshake && player->is_logged_in;
+}
+
+bool Server::is_name_taken(const std::string &name) {
+    for (auto & i : players)
+        if (i->name == name) return true;
+    return false;
+}
+
+void Server::handle_incoming_message(int fd) {
+    auto player = get_player_by_fd(fd);
+
+    std::cout << "Received message from client " << fd << " (" << player->name << "): " << buffer << std::endl;
 
     auto tokens = tokenize_buffer(COMMAND_DELIMITER);
     std::string cmd = tokens[0];
+    tokens.erase(tokens.begin());
+    cmd.erase(std::remove_if(cmd.begin(), cmd.end(), ::isspace), cmd.end());
 
-    std::cout << "Command: " << cmd << std::endl;
+    if (commands.count(cmd))
+        (this->*commands[cmd])(fd, tokens);
+    else
+        std::cerr << "ERROR: Unknown command: " << cmd << std::endl;
+}
+
+void Server::handshake(int fd, const std::vector<std::string> &params) {
+    send_message(fd, "HELLO\n");
+    get_player_by_fd(fd)->handshake = true;
+}
+
+void Server::login(int fd, const std::vector<std::string> &params) {
+    if (params.size() != 1) {
+        std::cerr << "ERROR: Invalid number of parameters for LOGIN command" << std::endl;
+        send_message(fd, "LOGIN|ERR|Invalid number of parameters\n");
+        return;
+    }
+    auto name = params[0];
+    name.erase(std::remove_if(name.begin(), name.end(), ::isspace), name.end());
+
+    if(is_name_taken(params[0])) {
+        std::cerr << "ERROR: Nickname " << name << " is already taken" << std::endl;
+        send_message(fd, "LOGIN|ERR|Nickname is already taken\n");
+        return;
+    }
+
+    auto player = get_player_by_fd(fd);
+    player->name = name;
+    player->is_logged_in = true;
+
+    std::cout << "Player " << player->name << " logged in" << std::endl;
+
+    send_message(fd, "LOGIN|OK\n");
 }
 
 void Server::run() {

@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 20)
 
 add_executable(
         server
-        server/game/main.cpp
+        server/main.cpp
         server/game/Game.cpp
         server/game/Game.h
         server/game/Player.cpp

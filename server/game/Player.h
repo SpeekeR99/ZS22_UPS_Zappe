@@ -23,6 +23,8 @@ public:
     PlayerState state;
     std::shared_ptr<MyRandom> random;
     bool can_play;
+    bool handshake;
+    bool is_logged_in;
 
     explicit Player(int socket);
     ~Player() = default;

@@ -3,6 +3,9 @@
 
 Player::Player(int socket) : socket{socket} {
     state = PlayerState::P_S_IN_MAIN_MENU;
+    can_play = false;
+    handshake = false;
+    is_logged_in = false;
 }
 
 void Player::randomize_hand() {
@@ -10,13 +13,15 @@ void Player::randomize_hand() {
 }
 
 void Player::reroll_hand(const std::array<int, NUMBER_OF_DICE> &indices) {
-    if (state != PlayerState::P_S_IN_GAME) return;
+    if (state != PlayerState::P_S_IN_GAME && !can_play) return;
 
     for (int i = 0; i < indices.size(); i++) {
         if (indices[i] == 1) hand[i] = random->roll_a_die();
     }
-    if (StateMachine::is_transition_possible(state, PlayerEvent::P_E_PLAY))
+    if (StateMachine::is_transition_possible(state, PlayerEvent::P_E_PLAY)) {
         state = StateMachine::transition(state, PlayerEvent::P_E_PLAY);
+        can_play = false;
+    }
 
     if (game->check_if_all_players_played() && StateMachine::is_transition_possible(game->state, GameEvent::G_E_END_ROUND)) {
         game->state = StateMachine::transition(game->state, GameEvent::G_E_END_ROUND);

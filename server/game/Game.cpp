@@ -2,6 +2,7 @@
 
 Game::Game() {
     state = GameState::G_S_WAITING_FOR_PLAYERS;
+    is_start_round = true;
 }
 
 void Game::join_game(const std::shared_ptr<Player>& player) {
@@ -20,14 +21,20 @@ void Game::join_game(const std::shared_ptr<Player>& player) {
 void Game::start_round() {
     player1->randomize_hand();
     player2->randomize_hand();
-    if (StateMachine::is_transition_possible(player1->state, P_E_PLAY))
+    if (StateMachine::is_transition_possible(player1->state, P_E_PLAY)) {
         player1->state = StateMachine::transition(player1->state, P_E_PLAY);
-    if (StateMachine::is_transition_possible(player2->state, P_E_PLAY))
+        player1->can_play = true;
+    }
+    if (StateMachine::is_transition_possible(player2->state, P_E_PLAY)) {
         player2->state = StateMachine::transition(player2->state, P_E_PLAY);
+        player2->can_play = true;
+    }
+    is_start_round = false;
 }
 
 bool Game::check_if_all_players_played() {
-    return player1->state == PlayerState::P_S_IN_GAME_CANNOT_PLAY && player2->state == PlayerState::P_S_IN_GAME_CANNOT_PLAY;
+    return player1->state == PlayerState::P_S_IN_GAME && !player1->can_play &&
+           player2->state == PlayerState::P_S_IN_GAME && !player2->can_play;
 }
 
 void Game::end_round() {
@@ -44,6 +51,7 @@ void Game::end_round() {
         end_game();
     } else if (StateMachine::is_transition_possible(state, G_E_START_ROUND)) {
         state = StateMachine::transition(state, G_E_START_ROUND);
+        is_start_round = true;
         start_round();
     }
 }
