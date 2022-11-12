@@ -22,7 +22,7 @@ Zprávy:
 	// záměrné zavření hry
 	Logout
 		C -> S: LOGOUT
-		S -> C: LOGOUT
+		S -> C: GOODBYE
 
 	// znovu přihlášení po nečekaném disconnectu
 	Reconnect:

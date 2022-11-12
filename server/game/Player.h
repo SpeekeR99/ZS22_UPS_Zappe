@@ -25,6 +25,7 @@ public:
     bool can_play;
     bool handshake;
     bool is_logged_in;
+    int number_of_error_messages;
 
     explicit Player(int socket);
     ~Player() = default;

@@ -26,6 +26,7 @@ private:
     typedef std::map<std::string, command> command_map;
 
     int server_socket;
+    fd_set client_socks{};
     char char_buffer[BUFFER_LEN]{};
     std::string buffer;
     std::vector<std::shared_ptr<Player>> players;
@@ -41,10 +42,13 @@ private:
     std::shared_ptr<Player> get_player_by_fd(int fd);
     bool is_player_logged_in(int fd);
     bool is_name_taken(const std::string &name);
-    void handle_incoming_message(int fd);
+    void disconnect_player(int fd);
+    void player_error_message_inc(int fd);
 
+    void handle_incoming_message(int fd);
     void handshake(int fd, const std::vector<std::string> &params);
     void login(int fd, const std::vector<std::string> &params);
+    void logout(int fd, const std::vector<std::string> &params);
 
 public:
     explicit Server(int port);

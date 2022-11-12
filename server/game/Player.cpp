@@ -6,6 +6,7 @@ Player::Player(int socket) : socket{socket} {
     can_play = false;
     handshake = false;
     is_logged_in = false;
+    number_of_error_messages = 0;
 }
 
 void Player::randomize_hand() {

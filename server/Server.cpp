@@ -42,6 +42,7 @@ Server::~Server() {
 void Server::init_commands_map() {
     commands["HELLO"] = &Server::handshake;
     commands["LOGIN"] = &Server::login;
+    commands["LOGOUT"] = &Server::logout;
 }
 
 void Server::clear_char_buffer() {
@@ -89,9 +90,30 @@ bool Server::is_player_logged_in(int fd) {
 }
 
 bool Server::is_name_taken(const std::string &name) {
-    for (auto & i : players)
-        if (i->name == name) return true;
-    return false;
+    return std::any_of(players.begin(), players.end(), [&name](const std::shared_ptr<Player> &player) {
+        return player->name == name;
+    });
+}
+
+void Server::disconnect_player(int fd) {
+    std::cout << "Client " << fd << " disconnected" << std::endl;
+    close(fd);
+    FD_CLR(fd, &client_socks);
+    players.erase(std::remove_if(players.begin(), players.end(),
+                                 [fd](const std::shared_ptr<Player>& player) {
+                                     return player->socket == fd;
+                                 }), players.end());
+}
+
+void Server::player_error_message_inc(int fd) {
+    auto player = get_player_by_fd(fd);
+    player->number_of_error_messages++;
+
+    if (player->number_of_error_messages >= 3) {
+        std::cout << "Player " << player->name << " has been disconnected for too many error messages" << std::endl;
+        send_message(fd, "Too many error messages. Disconnecting...\n");
+        disconnect_player(fd);
+    }
 }
 
 void Server::handle_incoming_message(int fd) {
@@ -106,44 +128,56 @@ void Server::handle_incoming_message(int fd) {
 
     if (commands.count(cmd))
         (this->*commands[cmd])(fd, tokens);
-    else
+    else {
         std::cerr << "ERROR: Unknown command: " << cmd << std::endl;
+        send_message(fd, "ERROR: Unknown command: " + cmd + "\n");
+        player_error_message_inc(fd);
+    }
 }
 
 void Server::handshake(int fd, const std::vector<std::string> &params) {
     send_message(fd, "HELLO\n");
     get_player_by_fd(fd)->handshake = true;
+    get_player_by_fd(fd)->number_of_error_messages = 0;
 }
 
 void Server::login(int fd, const std::vector<std::string> &params) {
-    if (params.size() != 1) {
-        std::cerr << "ERROR: Invalid number of parameters for LOGIN command" << std::endl;
-        send_message(fd, "LOGIN|ERR|Invalid number of parameters\n");
-        return;
-    }
+    auto player = get_player_by_fd(fd);
     auto name = params[0];
     name.erase(std::remove_if(name.begin(), name.end(), ::isspace), name.end());
 
-    if(is_name_taken(params[0])) {
+    if (params.size() != 1) {
+        std::cerr << "ERROR: Invalid number of parameters for LOGIN command" << std::endl;
+        send_message(fd, "LOGIN|ERR|Invalid number of parameters\n");
+        player_error_message_inc(fd);
+        return;
+    }
+
+    if(is_name_taken(name)) {
         std::cerr << "ERROR: Nickname " << name << " is already taken" << std::endl;
         send_message(fd, "LOGIN|ERR|Nickname is already taken\n");
         return;
     }
 
-    auto player = get_player_by_fd(fd);
     player->name = name;
     player->is_logged_in = true;
+    player->number_of_error_messages = 0;
 
     std::cout << "Player " << player->name << " logged in" << std::endl;
-
     send_message(fd, "LOGIN|OK\n");
+}
+
+void Server::logout(int fd, const std::vector<std::string> &params) {
+    std::cout << "Player " << get_player_by_fd(fd)->name << " logged out" << std::endl;
+    send_message(fd, "GOODBYE\n");
+    disconnect_player(fd);
 }
 
 void Server::run() {
     std::cout << "Server running..." << std::endl;
 
     // Initialize client sockets
-    fd_set client_socks, read_fds;
+    fd_set read_fds;
     FD_ZERO(&client_socks);
     FD_SET(server_socket, &client_socks);
     FD_SET(STDIN_FILENO, &client_socks);
@@ -175,10 +209,9 @@ void Server::run() {
 
                     // It is a new connection
                     if (fd == server_socket) {
-                        int client_socket;
                         socklen_t len_addr;
                         struct sockaddr_in client_address{};
-                        client_socket = accept(server_socket, (struct sockaddr *) &client_address, &len_addr);
+                        int client_socket = accept(server_socket, (struct sockaddr *) &client_address, &len_addr);
                         FD_SET(client_socket, &client_socks);
                         players.push_back(std::make_shared<Player>(client_socket));
                         std::cout << "New client connected: " << client_socket << std::endl;
@@ -194,15 +227,8 @@ void Server::run() {
                             handle_incoming_message(fd);
 
                         // Client disconnected
-                        } else {
-                            close(fd);
-                            FD_CLR(fd, &client_socks);
-                            std::cout << "Client " << fd << " disconnected" << std::endl;
-                            players.erase(std::remove_if(players.begin(), players.end(),
-                                                         [fd](std::shared_ptr<Player> player) {
-                                                             return player->socket == fd;
-                                                         }), players.end());
-                        }
+                        } else
+                            disconnect_player(fd);
                     }
                 }
             }
