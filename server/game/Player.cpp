@@ -1,13 +1,14 @@
 #include <iostream>
 #include "Player.h"
 
-Player::Player(int socket) : socket{socket} {
+Player::Player(int socket) : socket{socket}, score(0) {
     state = PlayerState::P_S_IN_MAIN_MENU;
     can_play = false;
     handshake = false;
     logged_in = false;
     number_of_error_messages = 0;
     game = nullptr;
+    random = std::make_shared<MyRandom>();
 }
 
 void Player::randomize_hand() {
@@ -15,20 +16,14 @@ void Player::randomize_hand() {
 }
 
 void Player::reroll_hand(const std::array<int, NUMBER_OF_DICE> &indices) {
-    if (state != PlayerState::P_S_IN_GAME && !can_play) return;
-
     for (int i = 0; i < indices.size(); i++) {
-        if (indices[i] == 1) hand[i] = random->roll_a_die();
+        if (indices[i]) hand[i] = random->roll_a_die();
     }
-    if (StateMachine::is_transition_possible(state, PlayerEvent::P_E_PLAY)) {
-        state = StateMachine::transition(state, PlayerEvent::P_E_PLAY);
-        can_play = false;
-    }
+    can_play = false;
 
-    if (game->check_if_all_players_played() && StateMachine::is_transition_possible(game->state, GameEvent::G_E_END_ROUND)) {
-        game->state = StateMachine::transition(game->state, GameEvent::G_E_END_ROUND);
+    // Check if both players played
+    if (game->check_if_all_players_played())
         game->end_round();
-    }
 }
 
 void set_score(int &points, std::array<int, 2> &which_cards, std::string &what_combination, int score, int which_1, int which_2, const std::string &combination) {

@@ -48,6 +48,8 @@ void Server::init_commands_map() {
     commands["JOIN_LOBBY"] = &Server::join_lobby;
     commands["LEAVE_LOBBY"] = &Server::leave_lobby;
     commands["LIST_LOBBIES"] = &Server::list_lobbies;
+    commands["GAME_STATUS"] = &Server::game_status;
+    commands["REROLL"] = &Server::reroll;
 }
 
 void Server::clear_char_buffer() {
@@ -293,9 +295,10 @@ void Server::create_lobby(int fd, const std::vector<std::string> &params) {
     }
 
     // Create a new lobby
-    auto game = std::make_shared<Game>(game_id++);
-    game->join_game(player);
+    auto game = std::make_shared<Game>(game_id++, player);
+    player->game = game;
     games.push_back(game);
+    player->number_of_error_messages = 0;
 
     std::cout << "Player " << player->name << " created a lobby " << game->id << std::endl;
     send_message(fd, "CREATE_LOBBY|OK|" + std::to_string(game->id) + "\n");
@@ -339,13 +342,15 @@ void Server::join_lobby(int fd, const std::vector<std::string> &params) {
     }
 
     // Join the lobby
-    game->join_game(player);
     std::cout << "Player " << player->name << " joined lobby " << game->id << std::endl;
 
     // Notify both players about their opponent
     auto opponent = game->get_opponent(player);
     send_message(fd, "JOIN_LOBBY|OK|" + opponent->name + "\n");
     send_message(opponent->socket, "JOIN_LOBBY|OK|" + player->name + "\n");
+
+    player->number_of_error_messages = 0;
+    game->join_game(player);
     std::cout << "Game " << id << " started" << std::endl;
 }
 
@@ -380,6 +385,7 @@ void Server::leave_lobby(int fd, const std::vector<std::string> &params) {
     auto game = player->game;
     game->player1 = nullptr; // we can be sure that the host is the player1
     player->state = P_S_IN_MAIN_MENU;
+    player->number_of_error_messages = 0;
 
     std::cout << "Player " << player->name << " left a lobby " << game->id << std::endl;
     send_message(fd, "LEAVE_LOBBY|OK\n");
@@ -405,6 +411,7 @@ void Server::list_lobbies(int fd, const std::vector<std::string> &params) {
     }
 
     // Send the list of lobbies
+    player->number_of_error_messages = 0;
     std::string message = "LIST_LOBBIES|OK";
     for (const auto& game : games) {
         if (game->state == G_S_WAITING_FOR_PLAYERS) {
@@ -415,6 +422,119 @@ void Server::list_lobbies(int fd, const std::vector<std::string> &params) {
     send_message(fd, message);
 }
 
+void Server::game_status(int fd, const std::vector<std::string> &params) {
+    auto player = get_player_by_fd(fd);
+
+    // Check if the number of parameters is correct
+    if (!params.empty()) {
+        std::cerr << "ERROR: Invalid number of parameters for GAME_STATUS command" << std::endl;
+        send_message(fd, "GAME_STATUS|ERR|Invalid number of parameters\n");
+        player_error_message_inc(fd);
+        return;
+    }
+
+    // Check if the player is in a game
+    if (player->state != P_S_IN_GAME) {
+        std::cerr << "ERROR: Player " << player->name << " is not in a game" << std::endl;
+        send_message(fd, "GAME_STATUS|ERR|You are not in a game\n");
+        player_error_message_inc(fd);
+        return;
+    }
+
+    // Send the game status
+    player->number_of_error_messages = 0;
+    auto game = player->game;
+    auto opponent = game->get_opponent(player);
+    std::string message = "GAME_STATUS|OK|";
+    for (auto &i : player->hand)
+        message += std::to_string(i) + ",";
+    message += "|";
+    for (auto &i : opponent->hand)
+        message += std::to_string(i) + ",";
+    message += "|" + std::to_string(player->score) + "|" + std::to_string(opponent->score) + "\n";
+    send_message(fd, message);
+}
+
+void Server::reroll(int fd, const std::vector<std::string> &params) {
+    auto player = get_player_by_fd(fd);
+
+    // Check if the number of parameters is correct
+    if (params.size() != 1) {
+        std::cerr << "ERROR: Invalid number of parameters for REROLL command" << std::endl;
+        send_message(fd, "REROLL|ERR|Invalid number of parameters\n");
+        player_error_message_inc(fd);
+        return;
+    }
+
+    // Check if the player is in a game
+    if (player->state != P_S_IN_GAME) {
+        std::cerr << "ERROR: Player " << player->name << " is not in a game" << std::endl;
+        send_message(fd, "REROLL|ERR|You are not in a game\n");
+        player_error_message_inc(fd);
+        return;
+    }
+
+    // Check if the player can play
+    if (!player->can_play) {
+        std::cerr << "ERROR: Player " << player->name << " cannot play" << std::endl;
+        send_message(fd, "REROLL|ERR|You cannot play\n");
+        player_error_message_inc(fd);
+        return;
+    }
+
+    // Check the input
+    std::vector<int> indices;
+    std::stringstream ss(params[0]);
+    std::string item;
+
+    while (std::getline(ss, item, ',')) {
+        try {
+            int d = std::stoi(item);
+            if (d < 0 || d > 1) {
+                std::cerr << "ERROR: Player " << player->name << " tried to input invalid flag bit " << d << std::endl;
+                send_message(fd, "REROLL|ERR|Invalid flag bit " + std::to_string(d) + "\n");
+                player_error_message_inc(fd);
+                return;
+            }
+            indices.push_back(d);
+        } catch (std::invalid_argument &e) {
+            std::cerr << "ERROR: Player " << player->name << " tried to input invalid flag bit " << item << std::endl;
+            send_message(fd, "REROLL|ERR|Invalid flag bit " + item + "\n");
+            player_error_message_inc(fd);
+            return;
+        }
+    }
+
+    // Check if the player has enough indices
+    if (indices.size() != NUMBER_OF_DICE) {
+        std::cerr << "ERROR: Player " << player->name << " tried to input more or less flag bits" << std::endl;
+        send_message(fd, "REROLL|ERR|Invalid number of indices\n");
+        player_error_message_inc(fd);
+        return;
+    }
+
+    // Reroll the indices
+    player->number_of_error_messages = 0;
+    std::array<int, NUMBER_OF_DICE> arr = {
+            indices[0], indices[1], indices[2], indices[3], indices[4]
+    };
+    player->reroll_hand(arr);
+
+    // Send the new hand
+    std::string message = "REROLL|OK|";
+    for (auto &i : player->hand)
+        message += std::to_string(i) + ",";
+    message += "\n";
+    send_message(fd, message);
+
+    auto opponent = player->game->get_opponent(player);
+    message = "REROLL_OPPONENT|OK|";
+    for (auto &i : player->hand)
+        message += std::to_string(i) + ",";
+    message += "\n";
+    send_message(opponent->socket, message);
+}
+
 void Server::run() {
     std::cout << "Server running..." << std::endl;
 
@@ -423,7 +543,7 @@ void Server::run() {
     FD_ZERO(&client_socks);
     FD_SET(server_socket, &client_socks);
     FD_SET(STDIN_FILENO, &client_socks);
-    struct timeval timeout = {5, 0};
+    struct timeval timeout = {1, 0};
 
     for (;;) {
         // Copy client_socks to read_fds (select() modifies read_fds)
@@ -490,6 +610,15 @@ void Server::run() {
                         }
                     }
                 }
+            }
+        }
+
+        // Check if there are any new rounds in the games
+        for (auto &i : games) {
+            if (i->state == G_S_PLAYING && i->is_new_round) {
+                i->is_new_round = false;
+                game_status(i->player1->socket, {});
+                game_status(i->player2->socket, {});
             }
         }
 

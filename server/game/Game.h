@@ -14,9 +14,9 @@ public:
     std::shared_ptr<Player> player1;
     std::shared_ptr<Player> player2;
     GameState state;
-    bool is_start_round;
+    bool is_new_round;
 
-    explicit Game(uint32_t id);
+    Game(uint32_t id, const std::shared_ptr<Player>& player);
     ~Game() = default;
 
     void join_game(const std::shared_ptr<Player>& player);

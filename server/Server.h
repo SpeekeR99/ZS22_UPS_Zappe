@@ -60,6 +60,8 @@ private:
     void join_lobby(int fd, const std::vector<std::string> &params);
     void leave_lobby(int fd, const std::vector<std::string> &params);
     void list_lobbies(int fd, const std::vector<std::string> &params);
+    void game_status(int fd, const std::vector<std::string> &params);
+    void reroll(int fd, const std::vector<std::string> &params);
 
 public:
     explicit Server(int port);

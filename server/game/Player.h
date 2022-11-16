@@ -9,7 +9,6 @@
 #include "Game.h"
 #include "MyRandom.h"
 
-constexpr unsigned char PLAYER_MAX_NAME_LEN = 31;
 constexpr unsigned char NUMBER_OF_DICE = 5;
 
 class Game;
@@ -20,7 +19,7 @@ public:
     std::string name;
     std::shared_ptr<Game> game;
     std::array<int, NUMBER_OF_DICE> hand{};
-    unsigned int score{};
+    unsigned int score;
     PlayerState state;
     std::shared_ptr<MyRandom> random;
     bool can_play;
