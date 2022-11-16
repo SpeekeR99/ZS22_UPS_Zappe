@@ -1,8 +1,7 @@
 #include "Game.h"
 
-Game::Game() {
-    state = GameState::G_S_WAITING_FOR_PLAYERS;
-    is_start_round = true;
+Game::Game(uint32_t id) : id(id), state(G_S_WAITING_FOR_PLAYERS), is_start_round(true) {
+    // empty
 }
 
 void Game::join_game(const std::shared_ptr<Player>& player) {
@@ -14,8 +13,14 @@ void Game::join_game(const std::shared_ptr<Player>& player) {
     }
     if (StateMachine::is_transition_possible(state, G_E_PLAY) && player1 && player2) {
         state = StateMachine::transition(state, G_E_PLAY);
-        start_round();
+//        start_round();
     }
+}
+
+std::shared_ptr<Player> Game::get_opponent(const std::shared_ptr<Player> &player) const {
+    if (player1 == player) return player2;
+    else if (player2 == player) return player1;
+    else return nullptr;
 }
 
 void Game::start_round() {

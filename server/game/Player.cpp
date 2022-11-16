@@ -5,8 +5,9 @@ Player::Player(int socket) : socket{socket} {
     state = PlayerState::P_S_IN_MAIN_MENU;
     can_play = false;
     handshake = false;
-    is_logged_in = false;
+    logged_in = false;
     number_of_error_messages = 0;
+    game = nullptr;
 }
 
 void Player::randomize_hand() {

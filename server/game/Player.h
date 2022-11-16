@@ -4,6 +4,7 @@
 #include <string>
 #include <memory>
 #include <map>
+#include <chrono>
 #include "StateMachine.h"
 #include "Game.h"
 #include "MyRandom.h"
@@ -24,8 +25,9 @@ public:
     std::shared_ptr<MyRandom> random;
     bool can_play;
     bool handshake;
-    bool is_logged_in;
+    bool logged_in;
     int number_of_error_messages;
+    std::chrono::time_point<std::chrono::high_resolution_clock> disconnect_time;
 
     explicit Player(int socket);
     ~Player() = default;
