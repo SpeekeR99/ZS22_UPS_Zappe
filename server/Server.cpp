@@ -43,6 +43,7 @@ void Server::init_commands_map() {
     commands["HELLO"] = &Server::handshake;
     commands["LOGIN"] = &Server::login;
     commands["LOGOUT"] = &Server::logout;
+    commands["RECONNECT"] = &Server::reconnect;
 }
 
 void Server::clear_char_buffer() {
@@ -84,6 +85,13 @@ std::shared_ptr<Player> Server::get_player_by_fd(int fd) {
     return player;
 }
 
+std::shared_ptr<Player> Server::get_player_by_name(const std::string &name) {
+    std::shared_ptr<Player> player;
+    for (auto & i : players)
+        if (i->name == name) player = i;
+    return player;
+}
+
 bool Server::is_player_logged_in(int fd) {
     auto player = get_player_by_fd(fd);
     return player->handshake && player->is_logged_in;
@@ -91,6 +99,8 @@ bool Server::is_player_logged_in(int fd) {
 
 bool Server::is_name_taken(const std::string &name) {
     return std::any_of(players.begin(), players.end(), [&name](const std::shared_ptr<Player> &player) {
+        return player->name == name;
+    }) || std::any_of(disconnected_players.begin(), disconnected_players.end(), [&name](const std::shared_ptr<Player> &player) {
         return player->name == name;
     });
 }
@@ -126,11 +136,17 @@ void Server::handle_incoming_message(int fd) {
     tokens.erase(tokens.begin());
     cmd.erase(std::remove_if(cmd.begin(), cmd.end(), ::isspace), cmd.end());
 
-    if (commands.count(cmd))
-        (this->*commands[cmd])(fd, tokens);
-    else {
+    if (commands.count(cmd)) {
+        if ((player->handshake && is_player_logged_in(fd)) || cmd == "HELLO" || cmd == "LOGIN" || cmd == "RECONNECT")
+            (this->*commands[cmd])(fd, tokens);
+        else {
+            std::cerr << "ERROR: Client " << fd << " (" << player->name << ") has either not yet done handshake or is not logged in" << std::endl;
+            send_message(fd, "CMD|ERR|You must handshake and login first\n");
+            player_error_message_inc(fd);
+        }
+    } else {
         std::cerr << "ERROR: Unknown command: " << cmd << std::endl;
-        send_message(fd, "ERROR: Unknown command: " + cmd + "\n");
+        send_message(fd, "CMD|ERR|Unknown command|" + cmd + "\n");
         player_error_message_inc(fd);
     }
 }
@@ -153,6 +169,13 @@ void Server::login(int fd, const std::vector<std::string> &params) {
         return;
     }
 
+    if (is_player_logged_in(fd)) {
+        std::cerr << "ERROR: Player " << player->name << " is already logged in" << std::endl;
+        send_message(fd, "LOGIN|ERR|You are already logged in\n");
+        player_error_message_inc(fd);
+        return;
+    }
+
     if(is_name_taken(name)) {
         std::cerr << "ERROR: Nickname " << name << " is already taken" << std::endl;
         send_message(fd, "LOGIN|ERR|Nickname is already taken\n");
@@ -171,6 +194,54 @@ void Server::logout(int fd, const std::vector<std::string> &params) {
     std::cout << "Player " << get_player_by_fd(fd)->name << " logged out" << std::endl;
     send_message(fd, "GOODBYE\n");
     disconnect_player(fd);
+}
+
+void Server::reconnect(int fd, const std::vector<std::string> &params) {
+    auto player = get_player_by_fd(fd);
+    auto name = params[0];
+    name.erase(std::remove_if(name.begin(), name.end(), ::isspace), name.end());
+
+    if (params.size() != 1) {
+        std::cerr << "ERROR: Invalid number of parameters for RECONNECT command" << std::endl;
+        send_message(fd, "RECONNECT|ERR|Invalid number of parameters\n");
+        player_error_message_inc(fd);
+        return;
+    }
+
+    if (!is_name_taken(name)) {
+        std::cerr << "ERROR: Player " << name << " does not exist" << std::endl;
+        send_message(fd, "RECONNECT|ERR|Name does not exist\n");
+        player_error_message_inc(fd);
+        return;
+    }
+
+    std::shared_ptr<Player> player_reconnecting_to;
+    for (auto &i : disconnected_players) {
+        if (i->name == name) {
+            player_reconnecting_to = i;
+            break;
+        }
+    }
+
+    if (player_reconnecting_to->is_logged_in) {
+        std::cerr << "ERROR: Player " << player->name << " is not disconnected" << std::endl;
+        send_message(fd, "RECONNECT|ERR|Player is not disconnected\n");
+        player_error_message_inc(fd);
+        return;
+    }
+
+    player->name = name;
+    player->is_logged_in = true;
+    player->number_of_error_messages = 0;
+
+    auto socket = player_reconnecting_to->socket;
+    disconnected_players.erase(std::remove_if(disconnected_players.begin(), disconnected_players.end(),
+                                 [socket, name](const std::shared_ptr<Player>& player) {
+                                     return player->socket == socket && player->name == name;
+                                 }), disconnected_players.end());
+
+    std::cout << "Player " << player->name << " reconnected" << std::endl;
+    send_message(fd, "RECONNECT|OK\n");
 }
 
 void Server::run() {
@@ -212,6 +283,10 @@ void Server::run() {
                         socklen_t len_addr;
                         struct sockaddr_in client_address{};
                         int client_socket = accept(server_socket, (struct sockaddr *) &client_address, &len_addr);
+                        if (client_socket < 0) {
+                            std::cerr << "ERR: accept" << std::endl;
+                            continue;
+                        }
                         FD_SET(client_socket, &client_socks);
                         players.push_back(std::make_shared<Player>(client_socket));
                         std::cout << "New client connected: " << client_socket << std::endl;
@@ -226,9 +301,19 @@ void Server::run() {
                             recv_message(fd, a2read);
                             handle_incoming_message(fd);
 
-                        // Client disconnected
-                        } else
-                            disconnect_player(fd);
+                        // Client disconnected (not on purpose)
+                        } else {
+                            std::cout << "Client " << fd << " suddenly disconnected" << std::endl;
+                            auto player = get_player_by_fd(fd);
+                            player->is_logged_in = false;
+                            close(fd);
+                            FD_CLR(fd, &client_socks);
+                            disconnected_players.push_back(player);
+                            players.erase(std::remove_if(players.begin(), players.end(),
+                                                         [fd](const std::shared_ptr<Player>& player) {
+                                                             return player->socket == fd;
+                                                         }), players.end());
+                        }
                     }
                 }
             }

@@ -30,6 +30,7 @@ private:
     char char_buffer[BUFFER_LEN]{};
     std::string buffer;
     std::vector<std::shared_ptr<Player>> players;
+    std::vector<std::shared_ptr<Player>> disconnected_players;
     std::vector<std::shared_ptr<Game>> games;
     command_map commands;
 
@@ -40,6 +41,7 @@ private:
     void recv_message(int fd, int a2read);
     std::vector<std::string> tokenize_buffer(char delim) const;
     std::shared_ptr<Player> get_player_by_fd(int fd);
+    std::shared_ptr<Player> get_player_by_name(const std::string &name);
     bool is_player_logged_in(int fd);
     bool is_name_taken(const std::string &name);
     void disconnect_player(int fd);
@@ -49,6 +51,7 @@ private:
     void handshake(int fd, const std::vector<std::string> &params);
     void login(int fd, const std::vector<std::string> &params);
     void logout(int fd, const std::vector<std::string> &params);
+    void reconnect(int fd, const std::vector<std::string> &params);
 
 public:
     explicit Server(int port);
