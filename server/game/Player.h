@@ -19,7 +19,7 @@ public:
     std::string name;
     std::shared_ptr<Game> game;
     std::array<int, NUMBER_OF_DICE> hand{};
-    unsigned int score;
+    uint32_t score;
     PlayerState state;
     std::shared_ptr<MyRandom> random;
     bool can_play;

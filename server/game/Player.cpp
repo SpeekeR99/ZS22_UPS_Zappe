@@ -15,9 +15,9 @@ void Player::randomize_hand() {
 }
 
 void Player::reroll_hand(const std::array<int, NUMBER_OF_DICE> &indices) {
-    for (int i = 0; i < indices.size(); i++) {
+    for (int i = 0; i < indices.size(); i++)
         if (indices[i]) hand[i] = random->roll_a_die();
-    }
+
     can_play = false;
 
     // Check if both players played
@@ -25,61 +25,49 @@ void Player::reroll_hand(const std::array<int, NUMBER_OF_DICE> &indices) {
         game->end_round();
 }
 
-void set_score(int &points, std::array<int, 2> &which_cards, std::string &what_combination, int score, int which_1, int which_2, const std::string &combination) {
+void set_score(int &points, int &score_num, int score, int which_1, int which_2) {
     points = score;
-    which_cards[0] = which_1;
-    which_cards[1] = which_2;
-    what_combination = combination;
+    score_num = 100 * score + which_1 * 10 + which_2;
 }
 
 int Player::evaluate_hand() {
-    std::string what_combination;
-    std::array<int, 2> which_cards{-1, -1};
     std::array<int, 6> counts = {0, 0, 0, 0, 0, 0};
     int points = 0;
+    int score_num = 0;
 
     for (int i = 0; i < NUMBER_OF_DICE; i++) {
         counts[hand[i] - 1]++;
     }
 
     for (int i = 0; i < MAX_DIE_NUM; i++) {
-        if (counts[i] == 5 && points < 8) {
-            set_score(points, which_cards, what_combination, 8, i + 1, i + 1, "Five of a kind");
-        }
-        if (counts[i] == 4 && points < 7) {
-            set_score(points, which_cards, what_combination, 7, i + 1, i + 1, "Four of a kind");
-        }
+        if (counts[i] == 5 && points < 8) // Five of a kind
+            set_score(points, score_num, 8, i + 1, i + 1);
+        if (counts[i] == 4 && points < 7) // Four of a kind
+            set_score(points, score_num, 7, i + 1, i + 1);
         if (counts[i] == 3) {
             for (int j = 0; j < MAX_DIE_NUM; j++) {
-                if (counts[j] == 2 && i != j && points < 6) {
-                    set_score(points, which_cards, what_combination, 6, i + 1, j + 1, "Full house");
-                }
+                if (counts[j] == 2 && i != j && points < 6) // Full house
+                    set_score(points, score_num, 6, i + 1, j + 1);
             }
-            if (points < 3) {
-                set_score(points, which_cards, what_combination, 3, i + 1, i + 1, "Three of a kind");
-            }
+            if (points < 3) // Three of a kind
+                set_score(points, score_num, 3, i + 1, i + 1);
         }
         if (counts[i] == 2) {
             for (int j = 0; j < MAX_DIE_NUM; j++) {
-                if (counts[j] == 2 && i != j && points < 5) {
-                    set_score(points, which_cards, what_combination, 5, i + 1, j + 1, "Two pairs");
-                }
+                if (counts[j] == 2 && i != j && points < 2) // Two pairs
+                    set_score(points, score_num, 2, i + 1, j + 1);
             }
-            if (points < 2) {
-                set_score(points, which_cards, what_combination, 2, i + 1, i + 1, "One pair");
-            }
+            if (points < 1) // One pair
+                set_score(points, score_num, 1, i + 1, i + 1);
         }
         else {
-            if (counts[0] == 1 && counts[1] == 1 && counts[2] == 1 && counts[3] == 1 && counts[4] == 1 && points < 4) {
-                set_score(points, which_cards, what_combination, 4, 1, 5, "Small straight");
-            }
-            else if (counts[1] == 1 && counts[2] == 1 && counts[3] == 1 && counts[4] == 1 && counts[5] == 1 && points < 4) {
-                set_score(points, which_cards, what_combination, 5, 2, 6, "Big straight");
-            }
-            else if (points == 0) {
-                set_score(points, which_cards, what_combination, 1, 6, 6, "Nothing");
-            }
+            if (counts[0] == 1 && counts[1] == 1 && counts[2] == 1 && counts[3] == 1 && counts[4] == 1 && points < 4) // Small straight
+                set_score(points, score_num, 4, 1, 5);
+            else if (counts[1] == 1 && counts[2] == 1 && counts[3] == 1 && counts[4] == 1 && counts[5] == 1 && points < 5) // Big straight
+                set_score(points, score_num, 5, 2, 6);
+            else if (points == 0) // Nothing
+                set_score(points, score_num, 0, 6, 6);
         }
     }
-    return points;
+    return score_num;
 }
