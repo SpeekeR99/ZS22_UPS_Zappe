@@ -41,6 +41,7 @@ Server::~Server() {
 
 void Server::init_commands_map() {
     commands["OK"] = nullptr;
+    commands["ALIVE"] = &Server::alive;
     commands["HELLO"] = &Server::handshake;
     commands["LOGIN"] = &Server::login;
     commands["LOGOUT"] = &Server::logout;
@@ -149,7 +150,7 @@ void Server::handle_incoming_message(int fd) {
     // Check if command exists
     if (commands.count(cmd)) {
         // Check if player has sent HELLO message and is logged in (or is trying to send HELLO message / login / reconnect)
-        if ((player->handshake && player->logged_in) || cmd == "HELLO" || cmd == "LOGIN" || cmd == "RECONNECT")
+        if ((player->handshake && player->logged_in) || cmd == "HELLO" || cmd == "LOGIN" || cmd == "RECONNECT" || cmd == "ALIVE")
             (this->*commands[cmd])(fd, tokens);
         else {
             std::cerr << "ERROR: Client " << fd << " (" << player->name << ") has either not yet done handshake or is not logged in" << std::endl;
@@ -163,6 +164,19 @@ void Server::handle_incoming_message(int fd) {
     }
 }
 
+void Server::alive(int fd, const std::vector<std::string> &params) {
+    // Check if the number of parameters is correct
+    if (!params.empty()) {
+        std::cerr << "ERROR: Invalid number of parameters for ALIVE command" << std::endl;
+        send_message(fd, "ALIVE|ERR|Invalid number of parameters\n");
+        player_error_message_inc(fd);
+        return;
+    }
+
+    get_player_by_fd(fd)->number_of_error_messages = 0;
+    send_message(fd, "ALIVE\n");
+}
+
 void Server::handshake(int fd, const std::vector<std::string> &params) {
     // Check if the number of parameters is correct
     if (!params.empty()) {
@@ -172,9 +186,9 @@ void Server::handshake(int fd, const std::vector<std::string> &params) {
         return;
     }
 
+    get_player_by_fd(fd)->number_of_error_messages = 0;
     send_message(fd, "HELLO\n");
     get_player_by_fd(fd)->handshake = true;
-    get_player_by_fd(fd)->number_of_error_messages = 0;
 }
 
 void Server::login(int fd, const std::vector<std::string> &params) {
@@ -439,9 +453,8 @@ void Server::list_lobbies(int fd, const std::vector<std::string> &params) {
     player->number_of_error_messages = 0;
     std::string message = "LIST_LOBBIES|OK";
     for (const auto& game : games) {
-        if (game->state == G_S_WAITING_FOR_PLAYERS) {
-            message += "|" + std::to_string(game->id);
-        }
+        if (game->state == G_S_WAITING_FOR_PLAYERS)
+            message += "|" + std::to_string(game->id) + "," + game->player1->name;
     }
     message += "\n";
     send_message(fd, message);
@@ -563,6 +576,7 @@ void Server::reroll(int fd, const std::vector<std::string> &params) {
     std::string message = "REROLL|OK|";
     for (auto &i : player->hand)
         message += std::to_string(i) + ",";
+    message = message.substr(0, message.size() - 1);
     message += "\n";
     send_message(fd, message);
 
@@ -570,6 +584,7 @@ void Server::reroll(int fd, const std::vector<std::string> &params) {
     message = "REROLL_OPPONENT|OK|";
     for (auto &i : player->hand)
         message += std::to_string(i) + ",";
+    message = message.substr(0, message.size() - 1);
     message += "\n";
     send_message(opponent->socket, message);
 }
@@ -756,8 +771,11 @@ void Server::run() {
                 i->game->paused = false;
                 i->game->game_over = false;
                 i->game->state = G_S_FINISHED;
-                game_status(i->game->get_opponent(i)->socket, {});
-                game_over(i->game->get_opponent(i)->socket);
+                auto opponent = i->game->get_opponent(i);
+                if (opponent) {
+                    game_status(opponent->socket, {});
+                    game_over(opponent->socket);
+                }
             }
         }
 

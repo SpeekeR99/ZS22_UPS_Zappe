@@ -52,6 +52,7 @@ private:
     void player_error_message_inc(int fd);
 
     void handle_incoming_message(int fd);
+    void alive(int fd, const std::vector<std::string> &params);
     void handshake(int fd, const std::vector<std::string> &params);
     void login(int fd, const std::vector<std::string> &params);
     void logout(int fd, const std::vector<std::string> &params);
