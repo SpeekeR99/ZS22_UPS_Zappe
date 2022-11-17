@@ -1,6 +1,6 @@
-import sys
 import socket
 import select
+import time
 from gui.gui_scenes import *
 
 LOG_FILE = "client.log"
@@ -61,19 +61,16 @@ if __name__ == "__main__":
     write_fds = []
     exception_fds = []
 
-    current_scene = main_menu
-
     while True:
-        readReady, writeReady, exceptionReady = select.select(read_fds, write_fds, exception_fds, 0.1)
+        from gui.gui_scenes import current_scene
+        readReady, writeReady, exceptionReady = select.select(read_fds, write_fds, exception_fds, 0.01)
 
         for fd in readReady:
             if fd is socket_fd:
                 data = client_socket.recv(1024)
                 if len(data) == 0:
                     print("Server je nedostupny")
-                    print("Ukoncuji chat")
-                    client_socket.close()
-                    sys.exit()
+                    time.sleep(1)
                 print(data.decode())
                 break
 
