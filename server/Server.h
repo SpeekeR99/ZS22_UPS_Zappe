@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <sstream>
 #include <chrono>
+#include <fstream>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/time.h>
@@ -22,6 +23,7 @@
 constexpr size_t BUFFER_LEN = 1024;
 constexpr char COMMAND_DELIMITER = '|';
 constexpr uint32_t DC_TIMEOUT_SEC = 30;
+constexpr const char *LOG_FILE = "server.log";
 
 class Server {
 private:
@@ -38,6 +40,7 @@ private:
     std::vector<std::shared_ptr<Game>> games;
     command_map commands;
 
+    void log(const std::string &message);
     void init_commands_map();
     void clear_char_buffer();
     void read_message(int fd);

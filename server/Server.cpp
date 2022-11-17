@@ -7,9 +7,9 @@ Server::Server(int port) : game_id(0) {
     // Set socket options
     int param = 1;
     if (setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, (const char *) &param, sizeof(int)) == -1)
-        std::cerr << "ERR: setsockopt" << std::endl;
+        log("ERROR: setsockopt");
     else
-        std::cout << "OK: setsockopt" << std::endl;
+        log("OK: setsockopt");
 
     // Set server address
     struct sockaddr_in server_address{};
@@ -20,23 +20,34 @@ Server::Server(int port) : game_id(0) {
 
     // Bind socket to address
     if (!bind(server_socket, (struct sockaddr *) &server_address, sizeof(struct sockaddr_in)))
-        std::cout << "OK: bind" << std::endl;
+        log("OK: bind");
     else
-        std::cerr << "ERR: bind" << std::endl;
+        log("ERROR: bind");
 
     // Listen for incoming connections
     if (!listen(server_socket, 5))
-        std::cout << "OK: listen" << std::endl;
+        log("OK: listen");
     else
-        std::cerr << "ERR: listen" << std::endl;
+        log("ERROR: listen");
 
-    std::cout << "Server started on port " << port << std::endl;
+    log("Server started on port " + std::to_string(port));
 
     init_commands_map();
 }
 
 Server::~Server() {
     close(server_socket);
+}
+
+void Server::log(const std::string &message) {
+    auto log = std::ofstream(LOG_FILE, std::ios::app);
+    log << message << std::endl;
+    log.close();
+
+    if (message.find("ERR") != std::string::npos)
+        std::cerr << message << std::endl;
+    else
+        std::cout << message << std::endl;
 }
 
 void Server::init_commands_map() {
@@ -116,7 +127,7 @@ bool Server::does_game_exist(uint32_t id) {
 }
 
 void Server::disconnect_player(int fd) {
-    std::cout << "Client " << fd << " disconnected" << std::endl;
+    log("Client" + std::to_string(fd) + " disconnected");
     close(fd);
     FD_CLR(fd, &client_socks);
     players.erase(std::remove_if(players.begin(), players.end(),
@@ -131,7 +142,7 @@ void Server::player_error_message_inc(int fd) {
 
     // Disconnect player if he sent too many error messages
     if (player->number_of_error_messages >= 3) {
-        std::cout << "Player " << player->name << " has been disconnected for too many error messages" << std::endl;
+        log("Player " + player->name + " has been disconnected for too many error messages");
         send_message(fd, "Too many error messages. Disconnecting...\n");
         disconnect_player(fd);
     }
@@ -140,7 +151,7 @@ void Server::player_error_message_inc(int fd) {
 void Server::handle_incoming_message(int fd) {
     auto player = get_player_by_fd(fd);
 
-    std::cout << "Received message from client " << fd << " (" << player->name << "): " << buffer << std::endl;
+    log("Received message from client " + std::to_string(fd) + " (" + player->name + "): " + buffer);
 
     auto tokens = tokenize_buffer(COMMAND_DELIMITER);
     std::string cmd = tokens[0];
@@ -153,12 +164,12 @@ void Server::handle_incoming_message(int fd) {
         if ((player->handshake && player->logged_in) || cmd == "HELLO" || cmd == "LOGIN" || cmd == "RECONNECT" || cmd == "ALIVE")
             (this->*commands[cmd])(fd, tokens);
         else {
-            std::cerr << "ERROR: Client " << fd << " (" << player->name << ") has either not yet done handshake or is not logged in" << std::endl;
+            log("ERROR: Client " + std::to_string(fd) + " (" + player->name + ") tried to send message before handshake or login");
             send_message(fd, "CMD|ERR|You must handshake and login first\n");
             player_error_message_inc(fd);
         }
     } else {
-        std::cerr << "ERROR: Unknown command: " << cmd << std::endl;
+        log("ERROR: Client " + std::to_string(fd) + " (" + player->name + ") sent unknown command");
         send_message(fd, "CMD|ERR|Unknown command|" + cmd + "\n");
         player_error_message_inc(fd);
     }
@@ -167,7 +178,7 @@ void Server::handle_incoming_message(int fd) {
 void Server::alive(int fd, const std::vector<std::string> &params) {
     // Check if the number of parameters is correct
     if (!params.empty()) {
-        std::cerr << "ERROR: Invalid number of parameters for ALIVE command" << std::endl;
+        log("ERROR: Invalid number of parameters for ALIVE command");
         send_message(fd, "ALIVE|ERR|Invalid number of parameters\n");
         player_error_message_inc(fd);
         return;
@@ -180,7 +191,7 @@ void Server::alive(int fd, const std::vector<std::string> &params) {
 void Server::handshake(int fd, const std::vector<std::string> &params) {
     // Check if the number of parameters is correct
     if (!params.empty()) {
-        std::cerr << "ERROR: Invalid number of parameters for HELLO command" << std::endl;
+        log("ERROR: Invalid number of parameters for HELLO command");
         send_message(fd, "HELLO|ERR|Invalid number of parameters\n");
         player_error_message_inc(fd);
         return;
@@ -198,7 +209,7 @@ void Server::login(int fd, const std::vector<std::string> &params) {
 
     // Check if the number of parameters is correct
     if (params.size() != 1) {
-        std::cerr << "ERROR: Invalid number of parameters for LOGIN command" << std::endl;
+        log("ERROR: Invalid number of parameters for LOGIN command");
         send_message(fd, "LOGIN|ERR|Invalid number of parameters\n");
         player_error_message_inc(fd);
         return;
@@ -206,7 +217,7 @@ void Server::login(int fd, const std::vector<std::string> &params) {
 
     // Check if the player is not already logged in
     if (player->logged_in) {
-        std::cerr << "ERROR: Player " << player->name << " is already logged in" << std::endl;
+        log("ERROR: Player " + player->name + " is already logged in");
         send_message(fd, "LOGIN|ERR|You are already logged in\n");
         player_error_message_inc(fd);
         return;
@@ -214,7 +225,7 @@ void Server::login(int fd, const std::vector<std::string> &params) {
 
     // Check if the name is not taken
     if(is_name_taken(name)) {
-        std::cerr << "ERROR: Nickname " << name << " is already taken" << std::endl;
+        log("ERROR: Nickname " + name + " is already taken");
         send_message(fd, "LOGIN|ERR|Nickname is already taken\n");
         return;
     }
@@ -223,7 +234,7 @@ void Server::login(int fd, const std::vector<std::string> &params) {
     player->logged_in = true;
     player->number_of_error_messages = 0;
 
-    std::cout << "Player " << player->name << " logged in" << std::endl;
+    log("Player " + player->name + " logged in");
     send_message(fd, "LOGIN|OK\n");
 }
 
@@ -232,7 +243,7 @@ void Server::logout(int fd, const std::vector<std::string> &params) {
 
     // Check if the number of parameters is correct
     if (!params.empty()) {
-        std::cerr << "ERROR: Invalid number of parameters for GOODBYE command" << std::endl;
+        log("ERROR: Invalid number of parameters for GOODBYE command");
         send_message(fd, "GOODBYE|ERR|Invalid number of parameters\n");
         player_error_message_inc(fd);
         return;
@@ -241,7 +252,7 @@ void Server::logout(int fd, const std::vector<std::string> &params) {
     if (player->game)
         leave_game(fd, {});
 
-    std::cout << "Player " << player->name << " logged out" << std::endl;
+    log("Player " + player->name + " logged out");
     send_message(fd, "GOODBYE\n");
     disconnect_player(fd);
 }
@@ -253,7 +264,7 @@ void Server::reconnect(int fd, const std::vector<std::string> &params) {
 
     // Check if the number of parameters is correct
     if (params.size() != 1) {
-        std::cerr << "ERROR: Invalid number of parameters for RECONNECT command" << std::endl;
+        log("ERROR: Invalid number of parameters for RECONNECT command");
         send_message(fd, "RECONNECT|ERR|Invalid number of parameters\n");
         player_error_message_inc(fd);
         return;
@@ -261,7 +272,7 @@ void Server::reconnect(int fd, const std::vector<std::string> &params) {
 
     // Check if the name exists
     if (!is_name_taken(name)) {
-        std::cerr << "ERROR: Player " << name << " does not exist" << std::endl;
+        log("ERROR: Player " + name + " does not exist");
         send_message(fd, "RECONNECT|ERR|Name does not exist\n");
         player_error_message_inc(fd);
         return;
@@ -277,7 +288,7 @@ void Server::reconnect(int fd, const std::vector<std::string> &params) {
 
     // Check if the destination player is really disconnected
     if (player_reconnecting_to->logged_in || player_reconnecting_to->state != P_S_DISCONNECTED) {
-        std::cerr << "ERROR: Player " << player->name << " is not disconnected" << std::endl;
+        log("ERROR: Player " + player->name + " is not disconnected");
         send_message(fd, "RECONNECT|ERR|Player is not disconnected\n");
         player_error_message_inc(fd);
         return;
@@ -311,7 +322,7 @@ void Server::reconnect(int fd, const std::vector<std::string> &params) {
                                      return player == player_reconnecting_to;
                                  }), disconnected_players.end());
 
-    std::cout << "Player " << player->name << " reconnected" << std::endl;
+    log("Player " + player->name + " reconnected");
     send_message(fd, "RECONNECT|OK\n");
 }
 
@@ -320,7 +331,7 @@ void Server::create_game(int fd, const std::vector<std::string> &params) {
 
     // Check if the number of parameters is correct
     if (!params.empty()) {
-        std::cerr << "ERROR: Invalid number of parameters for CREATE_GAME command" << std::endl;
+        log("ERROR: Invalid number of parameters for CREATE_GAME command");
         send_message(fd, "CREATE_GAME|ERR|Invalid number of parameters\n");
         player_error_message_inc(fd);
         return;
@@ -328,7 +339,7 @@ void Server::create_game(int fd, const std::vector<std::string> &params) {
 
     // Check if the player is in main menu
     if (player->state != P_S_IN_MAIN_MENU) {
-        std::cerr << "ERROR: Player " << player->name << " is not in main menu" << std::endl;
+        log("ERROR: Player " + player->name + " is not in main menu");
         send_message(fd, "CREATE_GAME|ERR|You are not in main menu\n");
         player_error_message_inc(fd);
         return;
@@ -340,7 +351,7 @@ void Server::create_game(int fd, const std::vector<std::string> &params) {
     player->game = game;
     games.push_back(game);
 
-    std::cout << "Player " << player->name << " created a game " << game->id << std::endl;
+    log("Player " + player->name + " created a game " + std::to_string(game->id));
     send_message(fd, "CREATE_GAME|OK|" + std::to_string(game->id) + "\n");
 }
 
@@ -349,7 +360,7 @@ void Server::join_game(int fd, const std::vector<std::string> &params) {
 
     // Check if the number of parameters is correct
     if (params.size() != 1) {
-        std::cerr << "ERROR: Invalid number of parameters for JOIN_GAME command" << std::endl;
+        log("ERROR: Invalid number of parameters for JOIN_GAME command");
         send_message(fd, "JOIN_GAME|ERR|Invalid number of parameters\n");
         player_error_message_inc(fd);
         return;
@@ -357,7 +368,7 @@ void Server::join_game(int fd, const std::vector<std::string> &params) {
 
     // Check if the player is in main menu
     if (player->state != P_S_IN_MAIN_MENU) {
-        std::cerr << "ERROR: Player " << player->name << " is not in main menu" << std::endl;
+        log("ERROR: Player " + player->name + " is not in main menu");
         send_message(fd, "JOIN_GAME|ERR|You are not in main menu\n");
         player_error_message_inc(fd);
         return;
@@ -366,7 +377,7 @@ void Server::join_game(int fd, const std::vector<std::string> &params) {
     // Check if the lobby exists
     auto id = std::stoi(params[0]);
     if (!does_game_exist(id)) {
-        std::cerr << "ERROR: Game " << id << " does not exist" << std::endl;
+        log("ERROR: Game " + std::to_string(id) + " does not exist");
         send_message(fd, "JOIN_GAME|ERR|Game does not exist\n");
         player_error_message_inc(fd);
         return;
@@ -375,7 +386,7 @@ void Server::join_game(int fd, const std::vector<std::string> &params) {
     // Check if the lobby is full
     auto game = get_game_by_id(id);
     if (game->state != G_S_WAITING_FOR_PLAYERS) {
-        std::cerr << "ERROR: Game " << id << " is full" << std::endl;
+        log("ERROR: Game " + std::to_string(id) + " is full");
         send_message(fd, "JOIN_GAME|ERR|Game is full\n");
         player_error_message_inc(fd);
         return;
@@ -384,14 +395,14 @@ void Server::join_game(int fd, const std::vector<std::string> &params) {
     // Join the lobby
     player->number_of_error_messages = 0;
     game->join_game(player);
-    std::cout << "Player " << player->name << " joined game " << game->id << std::endl;
+    log("Player " + player->name + " joined game " + std::to_string(game->id));
 
     // Notify both players about their opponent
     auto opponent = game->get_opponent(player);
     send_message(fd, "JOIN_GAME|OK|" + opponent->name + "\n");
     send_message(opponent->socket, "JOIN_GAME|OK|" + player->name + "\n");
 
-    std::cout << "Game " << id << " started" << std::endl;
+    log("Game " + std::to_string(game->id) + " started");
 }
 
 void Server::leave_game(int fd, const std::vector<std::string> &params) {
@@ -399,7 +410,7 @@ void Server::leave_game(int fd, const std::vector<std::string> &params) {
 
     // Check if the number of parameters is correct
     if (!params.empty()) {
-        std::cerr << "ERROR: Invalid number of parameters for LEAVE_GAME command" << std::endl;
+        log("ERROR: Invalid number of parameters for LEAVE_GAME command");
         send_message(fd, "LEAVE_GAME|ERR|Invalid number of parameters\n");
         player_error_message_inc(fd);
         return;
@@ -407,7 +418,7 @@ void Server::leave_game(int fd, const std::vector<std::string> &params) {
 
     // Check if the player is in a game
     if (player->state != P_S_IN_LOBBY && player->state != P_S_IN_GAME) {
-        std::cerr << "ERROR: Player " << player->name << " is not in a game" << std::endl;
+        log("ERROR: Player " + player->name + " is not in a game");
         send_message(fd, "LEAVE_GAME|ERR|You are not in a game\n");
         player_error_message_inc(fd);
         return;
@@ -420,7 +431,7 @@ void Server::leave_game(int fd, const std::vector<std::string> &params) {
         game->player1 = nullptr; // we can be sure that the host is the player1
         player->state = P_S_IN_MAIN_MENU;
 
-        std::cout << "Player " << player->name << " left a game " << game->id << std::endl;
+        log("Player " + player->name + " left a game " + std::to_string(game->id));
         send_message(fd, "LEAVE_GAME|OK\n");
     }
     // Game is in the middle of the playing or is paused
@@ -456,7 +467,7 @@ void Server::list_games(int fd, const std::vector<std::string> &params) {
 
     // Check if the number of parameters is correct
     if (!params.empty()) {
-        std::cerr << "ERROR: Invalid number of parameters for LIST_GAMES command" << std::endl;
+        log("ERROR: Invalid number of parameters for LIST_GAMES command");
         send_message(fd, "LIST_GAMES|ERR|Invalid number of parameters\n");
         player_error_message_inc(fd);
         return;
@@ -464,7 +475,7 @@ void Server::list_games(int fd, const std::vector<std::string> &params) {
 
     // Check if the player is in main menu
     if (player->state != P_S_IN_MAIN_MENU) {
-        std::cerr << "ERROR: Player " << player->name << " is not in main menu" << std::endl;
+        log("ERROR: Player " + player->name + " is not in main menu");
         send_message(fd, "LIST_GAMES|ERR|You are not in main menu\n");
         player_error_message_inc(fd);
         return;
@@ -486,7 +497,7 @@ void Server::game_status(int fd, const std::vector<std::string> &params) {
 
     // Check if the number of parameters is correct
     if (!params.empty()) {
-        std::cerr << "ERROR: Invalid number of parameters for GAME_STATUS command" << std::endl;
+        log("ERROR: Invalid number of parameters for GAME_STATUS command");
         send_message(fd, "GAME_STATUS|ERR|Invalid number of parameters\n");
         player_error_message_inc(fd);
         return;
@@ -494,7 +505,7 @@ void Server::game_status(int fd, const std::vector<std::string> &params) {
 
     // Check if the player is in a game
     if (player->state != P_S_IN_GAME) {
-        std::cerr << "ERROR: Player " << player->name << " is not in a game" << std::endl;
+        log("ERROR: Player " + player->name + " is not in a game");
         send_message(fd, "GAME_STATUS|ERR|You are not in a game\n");
         player_error_message_inc(fd);
         return;
@@ -502,7 +513,7 @@ void Server::game_status(int fd, const std::vector<std::string> &params) {
 
     // Check if the opponent exists
     if (!player->game->get_opponent(player)) {
-        std::cerr << "ERROR: Opponent of " << player->name << " is no longer in the game" << std::endl;
+        log("ERROR: Opponent of " + player->name + " is no longer in the game");
         send_message(fd, "GAME_STATUS|ERR|Opponent already left, cannot access information about him");
         return;
     }
@@ -526,7 +537,7 @@ void Server::reroll(int fd, const std::vector<std::string> &params) {
 
     // Check if the number of parameters is correct
     if (params.size() != 1) {
-        std::cerr << "ERROR: Invalid number of parameters for REROLL command" << std::endl;
+        log("ERROR: Invalid number of parameters for REROLL command");
         send_message(fd, "REROLL|ERR|Invalid number of parameters\n");
         player_error_message_inc(fd);
         return;
@@ -534,7 +545,7 @@ void Server::reroll(int fd, const std::vector<std::string> &params) {
 
     // Check if the player is in a game
     if (player->state != P_S_IN_GAME) {
-        std::cerr << "ERROR: Player " << player->name << " is not in a game" << std::endl;
+        log("ERROR: Player " + player->name + " is not in a game");
         send_message(fd, "REROLL|ERR|You are not in a game\n");
         player_error_message_inc(fd);
         return;
@@ -542,7 +553,7 @@ void Server::reroll(int fd, const std::vector<std::string> &params) {
 
     // Check if the player can play
     if (!player->can_play) {
-        std::cerr << "ERROR: Player " << player->name << " cannot play" << std::endl;
+        log("ERROR: Player " + player->name + " cannot play");
         send_message(fd, "REROLL|ERR|You cannot play\n");
         player_error_message_inc(fd);
         return;
@@ -557,14 +568,14 @@ void Server::reroll(int fd, const std::vector<std::string> &params) {
         try {
             int d = std::stoi(item);
             if (d < 0 || d > 1) {
-                std::cerr << "ERROR: Player " << player->name << " tried to input invalid flag bit " << d << std::endl;
+                log("ERROR: Player " + player->name + " tried to input invalid flag bit " + std::to_string(d));
                 send_message(fd, "REROLL|ERR|Invalid flag bit " + std::to_string(d) + "\n");
                 player_error_message_inc(fd);
                 return;
             }
             indices.push_back(d);
         } catch (std::invalid_argument &e) {
-            std::cerr << "ERROR: Player " << player->name << " tried to input invalid flag bit " << item << std::endl;
+            log("ERROR: Player " + player->name + " tried to input invalid flag bit " + item);
             send_message(fd, "REROLL|ERR|Invalid flag bit " + item + "\n");
             player_error_message_inc(fd);
             return;
@@ -573,7 +584,7 @@ void Server::reroll(int fd, const std::vector<std::string> &params) {
 
     // Check if the player input the right amount of flags
     if (indices.size() != NUMBER_OF_DICE) {
-        std::cerr << "ERROR: Player " << player->name << " tried to input more or less flag bits" << std::endl;
+        log("ERROR: Player " + player->name + " tried to input more or less flag bits");
         send_message(fd, "REROLL|ERR|Invalid number of indices\n");
         player_error_message_inc(fd);
         return;
@@ -581,7 +592,7 @@ void Server::reroll(int fd, const std::vector<std::string> &params) {
 
     // Check if the game is not paused
     if (player->game->paused) {
-        std::cerr << "ERROR: Game " << player->game->id << " is paused" << std::endl;
+        log("ERROR: Game " + std::to_string(player->game->id) + " is paused");
         send_message(fd, "REROLL|ERR|Game is paused\n");
         return;
     }
@@ -615,7 +626,7 @@ void Server::accept_end_of_round(int fd, const std::vector<std::string> &params)
 
     // Check if the number of parameters is correct
     if (!params.empty()) {
-        std::cerr << "ERROR: Invalid number of parameters for ACCEPT_END_OF_ROUND command" << std::endl;
+        log("ERROR: Invalid number of parameters for ACCEPT_END_OF_ROUND command");
         send_message(fd, "ACCEPT_END_OF_ROUND|ERR|Invalid number of parameters\n");
         player_error_message_inc(fd);
         return;
@@ -623,7 +634,7 @@ void Server::accept_end_of_round(int fd, const std::vector<std::string> &params)
 
     // Check if the player is in a game
     if (player->state != P_S_IN_GAME) {
-        std::cerr << "ERROR: Player " << player->name << " is not in a game" << std::endl;
+        log("ERROR: Player " + player->name + " is not in a game");
         send_message(fd, "ACCEPT_END_OF_ROUND|ERR|You are not in a game\n");
         player_error_message_inc(fd);
         return;
@@ -632,7 +643,7 @@ void Server::accept_end_of_round(int fd, const std::vector<std::string> &params)
     // Check if the game is at the end of round
     auto game = player->game;
     if (!game->is_end_round) {
-        std::cerr << "ERROR: Game " << game->id << " is not at the end of round" << std::endl;
+        log("ERROR: Game " + std::to_string(game->id) + " is not at the end of round");
         send_message(fd, "ACCEPT_END_OF_ROUND|ERR|Game is not at the end of round\n");
         player_error_message_inc(fd);
         return;
@@ -640,7 +651,7 @@ void Server::accept_end_of_round(int fd, const std::vector<std::string> &params)
 
     //Check if the player did not already accept the end of round
     if (player->accepted_end_of_round) {
-        std::cerr << "ERROR: Player " << player->name << " already accepted the end of round" << std::endl;
+        log("ERROR: Player " + player->name + " already accepted the end of round");
         send_message(fd, "ACCEPT_END_OF_ROUND|ERR|You already accepted the end of round\n");
         player_error_message_inc(fd);
         return;
@@ -678,11 +689,11 @@ void Server::game_over(int fd) {
     else
         send_message(fd, "GAME_OVER|OK|WIN\n");
 
-    std::cout << "Game " << game->id << " is over" << std::endl;
+    log("Game " + std::to_string(game->id) + " is over");
 }
 
 void Server::run() {
-    std::cout << "Server running..." << std::endl;
+    log("Server running...");
 
     // Initialize client sockets
     fd_set read_fds;
@@ -700,7 +711,7 @@ void Server::run() {
 
         // Wait for activity on one of the sockets
         if (select(FD_SETSIZE, &read_fds, NULL, NULL, &timeout) < 0) {
-            std::cerr << "ERR: select" << std::endl;
+            log("ERROR: select");
             break;
         }
 
@@ -722,12 +733,12 @@ void Server::run() {
                         struct sockaddr_in client_address{};
                         int client_socket = accept(server_socket, (struct sockaddr *) &client_address, &len_addr);
                         if (client_socket < 0) {
-                            std::cerr << "ERR: accept" << std::endl;
+                            log("ERROR: accept");
                             continue;
                         }
                         FD_SET(client_socket, &client_socks);
                         players.push_back(std::make_shared<Player>(client_socket));
-                        std::cout << "New client connected: " << client_socket << std::endl;
+                        log("New client connected: " + std::to_string(client_socket));
 
                     // It is a message from a client
                     } else {
@@ -742,7 +753,7 @@ void Server::run() {
                         // Client disconnected (not on purpose)
                         } else {
                             auto player = get_player_by_fd(fd);
-                            std::cout << "Client " <<fd << " (" << player->name << ") suddenly disconnected" << std::endl;
+                            log("Client " + std::to_string(fd) + " (" + player->name + ") suddenly disconnected");
                             player->logged_in = false;
                             player->state = P_S_DISCONNECTED;
                             if (player->game) player->game->paused = true;
@@ -794,18 +805,20 @@ void Server::run() {
             auto now = std::chrono::high_resolution_clock::now();
             auto diff = std::chrono::duration_cast<std::chrono::seconds>(now - i->disconnect_time).count();
             if (diff > DC_TIMEOUT_SEC) {
-                std::cout << "Player " << i->name << " timed out" << std::endl;
+                log("Player " + i->name + " timed out");
                 disconnected_players.erase(std::remove_if(disconnected_players.begin(), disconnected_players.end(),
                                                           [i](const std::shared_ptr<Player>& player) {
                                                               return player == i;
                                                           }), disconnected_players.end());
-                i->game->paused = false;
-                i->game->game_over = false;
-                i->game->state = G_S_FINISHED;
-                auto opponent = i->game->get_opponent(i);
-                if (opponent) {
-                    game_status(opponent->socket, {});
-                    game_over(opponent->socket);
+                if (i->game) {
+                    i->game->paused = false;
+                    i->game->game_over = false;
+                    i->game->state = G_S_FINISHED;
+                    auto opponent = i->game->get_opponent(i);
+                    if (opponent) {
+                        game_status(opponent->socket, {});
+                        game_over(opponent->socket);
+                    }
                 }
             }
         }
@@ -830,7 +843,7 @@ void Server::run() {
             }
             // No player found, game is empty
             if (is_to_be_deleted) {
-                std::cout << "Game " << i->id << " deleted, no players are connected" << std::endl;
+                log("Game " + std::to_string(i->id) + " deleted, no players are connected");
                 games.erase(std::remove_if(games.begin(), games.end(),
                                            [i](const std::shared_ptr<Game>& game) {
                                                return game->id == i->id;
@@ -840,5 +853,5 @@ void Server::run() {
 
     }
 
-    std::cout << "Server shutting down..." << std::endl;
+    log("Server shutting down...");
 }

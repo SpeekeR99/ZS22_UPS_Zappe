@@ -1,4 +1,4 @@
-from button import Button
+from gui.button import Button
 import os
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'  # Hiding pygame support prompt (must be above import pygame)
 import pygame
@@ -10,9 +10,9 @@ pygame.font.init()
 
 def get_font(size, unicode=False):
     if unicode:
-        return pygame.font.Font("assets/seguisym.ttf", size)
+        return pygame.font.Font("gui/assets/seguisym.ttf", size)
     else:
-        return pygame.font.Font("assets/font.ttf", size)
+        return pygame.font.Font("gui/assets/font.ttf", size)
 
 
 def init_players_dice_buttons():
@@ -58,8 +58,8 @@ def change_dots(text):
 width = 1280
 height = 720
 window_name = "Dice Poker"
-menu_bg_pic_path = "assets/menu_background.png"
-game_bg_pic_path = "assets/game_background.jpg"
+menu_bg_pic_path = "gui/assets/menu_background.png"
+game_bg_pic_path = "gui/assets/game_background.jpg"
 color_palette = {
     "primary": "#d0955a",
     "primary_dark": "#1b0c05",
@@ -69,12 +69,16 @@ color_palette = {
     "red": "#800000",
     "black": "#000000"
 }
+login_screen_text1 = "PLEASE ENTER YOUR USERNAME: "
+login_screen_text2 = "IP: "
+login_screen_text3 = "PORT: "
 main_menu_text = "MAIN MENU"
 waiting_for_players_text = "WAITING FOR PLAYERS"
 quick_play_btn_text = "QUICK PLAY"
 quit_btn_text = "QUIT"
 reroll_btn_text = "REROLL"
 back_btn_text = "BACK"
+login_btn_text = "LOGIN"
 
 dice = ['\u2680', '\u2681', '\u2682', '\u2683', '\u2684', '\u2685']
 # TODO: takhle inicializace je pěkně na hovno, chci info od serveru

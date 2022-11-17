@@ -1,8 +1,7 @@
-from gui_utils import *
 import sys
-import pygame
 import random
-from button import Button
+from gui.gui_utils import *
+from gui.button import Button
 
 pygame.font.init()
 
@@ -169,6 +168,3 @@ def play():
 
         clock.tick(60)
         pygame.display.update()
-
-
-main_menu()
