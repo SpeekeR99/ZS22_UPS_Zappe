@@ -1,4 +1,3 @@
-#include <iostream>
 #include "Player.h"
 
 Player::Player(int socket) : socket{socket}, score(0) {

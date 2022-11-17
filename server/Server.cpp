@@ -40,6 +40,7 @@ Server::~Server() {
 }
 
 void Server::init_commands_map() {
+    commands["OK"] = nullptr;
     commands["HELLO"] = &Server::handshake;
     commands["LOGIN"] = &Server::login;
     commands["LOGOUT"] = &Server::logout;
@@ -50,6 +51,7 @@ void Server::init_commands_map() {
     commands["LIST_LOBBIES"] = &Server::list_lobbies;
     commands["GAME_STATUS"] = &Server::game_status;
     commands["REROLL"] = &Server::reroll;
+    commands["LEAVE_GAME"] = &Server::leave_game;
 }
 
 void Server::clear_char_buffer() {
@@ -212,6 +214,8 @@ void Server::login(int fd, const std::vector<std::string> &params) {
 }
 
 void Server::logout(int fd, const std::vector<std::string> &params) {
+    auto player = get_player_by_fd(fd);
+
     // Check if the number of parameters is correct
     if (!params.empty()) {
         std::cerr << "ERROR: Invalid number of parameters for GOODBYE command" << std::endl;
@@ -220,7 +224,10 @@ void Server::logout(int fd, const std::vector<std::string> &params) {
         return;
     }
 
-    std::cout << "Player " << get_player_by_fd(fd)->name << " logged out" << std::endl;
+    if (player->game)
+        leave_game(fd, {});
+
+    std::cout << "Player " << player->name << " logged out" << std::endl;
     send_message(fd, "GOODBYE\n");
     disconnect_player(fd);
 }
@@ -265,6 +272,24 @@ void Server::reconnect(int fd, const std::vector<std::string> &params) {
     player->name = name;
     player->logged_in = true;
     player->number_of_error_messages = 0;
+    player->game = player_reconnecting_to->game;
+    player->hand = player_reconnecting_to->hand;
+    player->score = player_reconnecting_to->score;
+    player->can_play = player_reconnecting_to->can_play;
+    if (player->game) {
+        player->game->paused = false;
+        if (player->game->state == G_S_WAITING_FOR_PLAYERS)
+            player->state = P_S_IN_LOBBY;
+        else
+            player->state = P_S_IN_GAME;
+
+        if (player->game->player1 == player_reconnecting_to)
+            player->game->player1 = player;
+        else
+            player->game->player2 = player;
+    }
+    else
+        player->state = P_S_IN_MAIN_MENU;
 
     disconnected_players.erase(std::remove_if(disconnected_players.begin(), disconnected_players.end(),
                                  [player_reconnecting_to](const std::shared_ptr<Player>& player) {
@@ -295,10 +320,10 @@ void Server::create_lobby(int fd, const std::vector<std::string> &params) {
     }
 
     // Create a new lobby
+    player->number_of_error_messages = 0;
     auto game = std::make_shared<Game>(game_id++, player);
     player->game = game;
     games.push_back(game);
-    player->number_of_error_messages = 0;
 
     std::cout << "Player " << player->name << " created a lobby " << game->id << std::endl;
     send_message(fd, "CREATE_LOBBY|OK|" + std::to_string(game->id) + "\n");
@@ -342,6 +367,8 @@ void Server::join_lobby(int fd, const std::vector<std::string> &params) {
     }
 
     // Join the lobby
+    player->number_of_error_messages = 0;
+    game->join_game(player);
     std::cout << "Player " << player->name << " joined lobby " << game->id << std::endl;
 
     // Notify both players about their opponent
@@ -349,8 +376,6 @@ void Server::join_lobby(int fd, const std::vector<std::string> &params) {
     send_message(fd, "JOIN_LOBBY|OK|" + opponent->name + "\n");
     send_message(opponent->socket, "JOIN_LOBBY|OK|" + player->name + "\n");
 
-    player->number_of_error_messages = 0;
-    game->join_game(player);
     std::cout << "Game " << id << " started" << std::endl;
 }
 
@@ -441,6 +466,13 @@ void Server::game_status(int fd, const std::vector<std::string> &params) {
         return;
     }
 
+    // Check if the opponent exists
+    if (!player->game->get_opponent(player)) {
+        std::cerr << "ERROR: Opponent of " << player->name << " is no longer in the game" << std::endl;
+        send_message(fd, "GAME_STATUS|ERR|Opponent already left, cannot access information about him");
+        return;
+    }
+
     // Send the game status
     player->number_of_error_messages = 0;
     auto game = player->game;
@@ -505,11 +537,18 @@ void Server::reroll(int fd, const std::vector<std::string> &params) {
         }
     }
 
-    // Check if the player has enough indices
+    // Check if the player input the right amount of flags
     if (indices.size() != NUMBER_OF_DICE) {
         std::cerr << "ERROR: Player " << player->name << " tried to input more or less flag bits" << std::endl;
         send_message(fd, "REROLL|ERR|Invalid number of indices\n");
         player_error_message_inc(fd);
+        return;
+    }
+
+    // Check if the game is not paused
+    if (player->game->paused) {
+        std::cerr << "ERROR: Game " << player->game->id << " is paused" << std::endl;
+        send_message(fd, "REROLL|ERR|Game is paused\n");
         return;
     }
 
@@ -533,6 +572,76 @@ void Server::reroll(int fd, const std::vector<std::string> &params) {
         message += std::to_string(i) + ",";
     message += "\n";
     send_message(opponent->socket, message);
+}
+
+void Server::leave_game(int fd, const std::vector<std::string> &params) {
+    auto player = get_player_by_fd(fd);
+
+    // Check if the number of parameters is correct
+    if (!params.empty()) {
+        std::cerr << "ERROR: Invalid number of parameters for LEAVE_GAME command" << std::endl;
+        send_message(fd, "LEAVE_GAME|ERR|Invalid number of parameters\n");
+        player_error_message_inc(fd);
+        return;
+    }
+
+    // Check if the player is in a game
+    if (player->state != P_S_IN_GAME) {
+        std::cerr << "ERROR: Player " << player->name << " is not in a game" << std::endl;
+        send_message(fd, "LEAVE_GAME|ERR|You are not in a game\n");
+        player_error_message_inc(fd);
+        return;
+    }
+
+    // Leave the game
+    player->number_of_error_messages = 0;
+    auto game = player->game;
+    auto opponent = game->get_opponent(player);
+    if (opponent)
+        game_status(opponent->socket, {});
+
+    if (game->player1 == player) {
+        game->player1 = nullptr;
+    } else {
+        game->player2 = nullptr;
+    }
+
+    player->game = nullptr;
+    player->state = P_S_IN_MAIN_MENU;
+    player->can_play = false;
+
+    send_message(fd, "LEAVE_GAME|OK\n");
+    if (opponent) {
+        send_message(opponent->socket, "LEAVE_GAME_OPPONENT|OK\n");
+        if (game->state != G_S_FINISHED) {
+            game->game_over = false;
+            game->state = G_S_FINISHED;
+            game_over(opponent->socket);
+        }
+    }
+}
+
+void Server::game_over(int fd) {
+    auto player = get_player_by_fd(fd);
+
+    player->number_of_error_messages = 0;
+    auto game = player->game;
+    auto opponent = game->get_opponent(player);
+
+    // Check if opponent exists
+    if (opponent) {
+        if (player->score > opponent->score)
+            send_message(fd, "GAME_OVER|OK|WIN\n");
+        else if (player->score < opponent->score)
+            send_message(fd, "GAME_OVER|OK|LOSS\n");
+        else
+            send_message(fd, "GAME_OVER|OK|DRAW\n");
+    }
+    // Player is the winner, because opponent doesn't exist
+    else
+        send_message(fd, "GAME_OVER|OK|WIN\n");
+
+    std::cout << "Game " << game->id << " is over";
 }
 
 void Server::run() {
@@ -599,6 +708,7 @@ void Server::run() {
                             std::cout << "Client " <<fd << " (" << player->name << ") suddenly disconnected" << std::endl;
                             player->logged_in = false;
                             player->state = P_S_DISCONNECTED;
+                            if (player->game) player->game->paused = true;
                             player->disconnect_time = std::chrono::high_resolution_clock::now();
                             close(fd);
                             FD_CLR(fd, &client_socks);
@@ -622,6 +732,17 @@ void Server::run() {
             }
         }
 
+        // Check if there are any finished games
+        for (auto &i : games) {
+            if (i->state == G_S_FINISHED && i->game_over) {
+                i->game_over = false;
+                game_status(i->player1->socket, {});
+                game_status(i->player2->socket, {});
+                game_over(i->player1->socket);
+                game_over(i->player2->socket);
+            }
+        }
+
         // Check if there are any players to be deleted
         for (auto &i : disconnected_players) {
             auto now = std::chrono::high_resolution_clock::now();
@@ -632,6 +753,11 @@ void Server::run() {
                                                           [i](const std::shared_ptr<Player>& player) {
                                                               return player == i;
                                                           }), disconnected_players.end());
+                i->game->paused = false;
+                i->game->game_over = false;
+                i->game->state = G_S_FINISHED;
+                game_status(i->game->get_opponent(i)->socket, {});
+                game_over(i->game->get_opponent(i)->socket);
             }
         }
 

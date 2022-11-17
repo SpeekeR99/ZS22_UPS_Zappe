@@ -62,6 +62,8 @@ private:
     void list_lobbies(int fd, const std::vector<std::string> &params);
     void game_status(int fd, const std::vector<std::string> &params);
     void reroll(int fd, const std::vector<std::string> &params);
+    void leave_game(int fd, const std::vector<std::string> &params);
+    void game_over(int fd);
 
 public:
     explicit Server(int port);
