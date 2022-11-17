@@ -57,13 +57,12 @@ private:
     void login(int fd, const std::vector<std::string> &params);
     void logout(int fd, const std::vector<std::string> &params);
     void reconnect(int fd, const std::vector<std::string> &params);
-    void create_lobby(int fd, const std::vector<std::string> &params);
-    void join_lobby(int fd, const std::vector<std::string> &params);
-    void leave_lobby(int fd, const std::vector<std::string> &params);
-    void list_lobbies(int fd, const std::vector<std::string> &params);
+    void create_game(int fd, const std::vector<std::string> &params);
+    void join_game(int fd, const std::vector<std::string> &params);
+    void leave_game(int fd, const std::vector<std::string> &params);
+    void list_games(int fd, const std::vector<std::string> &params);
     void game_status(int fd, const std::vector<std::string> &params);
     void reroll(int fd, const std::vector<std::string> &params);
-    void leave_game(int fd, const std::vector<std::string> &params);
     void game_over(int fd);
 
 public:

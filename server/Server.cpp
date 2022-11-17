@@ -46,13 +46,12 @@ void Server::init_commands_map() {
     commands["LOGIN"] = &Server::login;
     commands["LOGOUT"] = &Server::logout;
     commands["RECONNECT"] = &Server::reconnect;
-    commands["CREATE_LOBBY"] = &Server::create_lobby;
-    commands["JOIN_LOBBY"] = &Server::join_lobby;
-    commands["LEAVE_LOBBY"] = &Server::leave_lobby;
-    commands["LIST_LOBBIES"] = &Server::list_lobbies;
+    commands["CREATE_GAME"] = &Server::create_game;
+    commands["JOIN_GAME"] = &Server::join_game;
+    commands["LEAVE_GAME"] = &Server::leave_game;
+    commands["LIST_GAMES"] = &Server::list_games;
     commands["GAME_STATUS"] = &Server::game_status;
     commands["REROLL"] = &Server::reroll;
-    commands["LEAVE_GAME"] = &Server::leave_game;
 }
 
 void Server::clear_char_buffer() {
@@ -314,13 +313,13 @@ void Server::reconnect(int fd, const std::vector<std::string> &params) {
     send_message(fd, "RECONNECT|OK\n");
 }
 
-void Server::create_lobby(int fd, const std::vector<std::string> &params) {
+void Server::create_game(int fd, const std::vector<std::string> &params) {
     auto player = get_player_by_fd(fd);
 
     // Check if the number of parameters is correct
     if (!params.empty()) {
-        std::cerr << "ERROR: Invalid number of parameters for CREATE_LOBBY command" << std::endl;
-        send_message(fd, "CREATE_LOBBY|ERR|Invalid number of parameters\n");
+        std::cerr << "ERROR: Invalid number of parameters for CREATE_GAME command" << std::endl;
+        send_message(fd, "CREATE_GAME|ERR|Invalid number of parameters\n");
         player_error_message_inc(fd);
         return;
     }
@@ -328,7 +327,7 @@ void Server::create_lobby(int fd, const std::vector<std::string> &params) {
     // Check if the player is in main menu
     if (player->state != P_S_IN_MAIN_MENU) {
         std::cerr << "ERROR: Player " << player->name << " is not in main menu" << std::endl;
-        send_message(fd, "CREATE_LOBBY|ERR|You are not in main menu\n");
+        send_message(fd, "CREATE_GAME|ERR|You are not in main menu\n");
         player_error_message_inc(fd);
         return;
     }
@@ -339,17 +338,17 @@ void Server::create_lobby(int fd, const std::vector<std::string> &params) {
     player->game = game;
     games.push_back(game);
 
-    std::cout << "Player " << player->name << " created a lobby " << game->id << std::endl;
-    send_message(fd, "CREATE_LOBBY|OK|" + std::to_string(game->id) + "\n");
+    std::cout << "Player " << player->name << " created a game " << game->id << std::endl;
+    send_message(fd, "CREATE_GAME|OK|" + std::to_string(game->id) + "\n");
 }
 
-void Server::join_lobby(int fd, const std::vector<std::string> &params) {
+void Server::join_game(int fd, const std::vector<std::string> &params) {
     auto player = get_player_by_fd(fd);
 
     // Check if the number of parameters is correct
     if (params.size() != 1) {
-        std::cerr << "ERROR: Invalid number of parameters for JOIN_LOBBY command" << std::endl;
-        send_message(fd, "JOIN_LOBBY|ERR|Invalid number of parameters\n");
+        std::cerr << "ERROR: Invalid number of parameters for JOIN_GAME command" << std::endl;
+        send_message(fd, "JOIN_GAME|ERR|Invalid number of parameters\n");
         player_error_message_inc(fd);
         return;
     }
@@ -357,7 +356,7 @@ void Server::join_lobby(int fd, const std::vector<std::string> &params) {
     // Check if the player is in main menu
     if (player->state != P_S_IN_MAIN_MENU) {
         std::cerr << "ERROR: Player " << player->name << " is not in main menu" << std::endl;
-        send_message(fd, "CREATE_LOBBY|ERR|You are not in main menu\n");
+        send_message(fd, "JOIN_GAME|ERR|You are not in main menu\n");
         player_error_message_inc(fd);
         return;
     }
@@ -365,8 +364,8 @@ void Server::join_lobby(int fd, const std::vector<std::string> &params) {
     // Check if the lobby exists
     auto id = std::stoi(params[0]);
     if (!does_game_exist(id)) {
-        std::cerr << "ERROR: Lobby " << id << " does not exist" << std::endl;
-        send_message(fd, "JOIN_LOBBY|ERR|Lobby does not exist\n");
+        std::cerr << "ERROR: Game " << id << " does not exist" << std::endl;
+        send_message(fd, "JOIN_GAME|ERR|Game does not exist\n");
         player_error_message_inc(fd);
         return;
     }
@@ -374,8 +373,8 @@ void Server::join_lobby(int fd, const std::vector<std::string> &params) {
     // Check if the lobby is full
     auto game = get_game_by_id(id);
     if (game->state != G_S_WAITING_FOR_PLAYERS) {
-        std::cerr << "ERROR: Lobby " << id << " is full" << std::endl;
-        send_message(fd, "JOIN_LOBBY|ERR|Lobby is full\n");
+        std::cerr << "ERROR: Game " << id << " is full" << std::endl;
+        send_message(fd, "JOIN_GAME|ERR|Game is full\n");
         player_error_message_inc(fd);
         return;
     }
@@ -383,60 +382,80 @@ void Server::join_lobby(int fd, const std::vector<std::string> &params) {
     // Join the lobby
     player->number_of_error_messages = 0;
     game->join_game(player);
-    std::cout << "Player " << player->name << " joined lobby " << game->id << std::endl;
+    std::cout << "Player " << player->name << " joined game " << game->id << std::endl;
 
     // Notify both players about their opponent
     auto opponent = game->get_opponent(player);
-    send_message(fd, "JOIN_LOBBY|OK|" + opponent->name + "\n");
-    send_message(opponent->socket, "JOIN_LOBBY|OK|" + player->name + "\n");
+    send_message(fd, "JOIN_GAME|OK|" + opponent->name + "\n");
+    send_message(opponent->socket, "JOIN_GAME|OK|" + player->name + "\n");
 
     std::cout << "Game " << id << " started" << std::endl;
 }
 
-void Server::leave_lobby(int fd, const std::vector<std::string> &params) {
+void Server::leave_game(int fd, const std::vector<std::string> &params) {
     auto player = get_player_by_fd(fd);
 
     // Check if the number of parameters is correct
     if (!params.empty()) {
-        std::cerr << "ERROR: Invalid number of parameters for LEAVE_LOBBY command" << std::endl;
-        send_message(fd, "LEAVE_LOBBY|ERR|Invalid number of parameters\n");
+        std::cerr << "ERROR: Invalid number of parameters for LEAVE_GAME command" << std::endl;
+        send_message(fd, "LEAVE_GAME|ERR|Invalid number of parameters\n");
         player_error_message_inc(fd);
         return;
     }
 
-    // Check if the player is in a lobby
-    if (player->state != P_S_IN_LOBBY) {
-        std::cerr << "ERROR: Player " << player->name << " is not in a lobby" << std::endl;
-        send_message(fd, "LEAVE_LOBBY|ERR|You are not in a lobby\n");
+    // Check if the player is in a game
+    if (player->state != P_S_IN_LOBBY && player->state != P_S_IN_GAME) {
+        std::cerr << "ERROR: Player " << player->name << " is not in a game" << std::endl;
+        send_message(fd, "LEAVE_GAME|ERR|You are not in a game\n");
         player_error_message_inc(fd);
         return;
     }
 
     // Check if the game is waiting for players
-    if (player->game->state != G_S_WAITING_FOR_PLAYERS) {
-        std::cerr << "ERROR: Game " << player->game->id << " is not waiting for players" << std::endl;
-        send_message(fd, "LEAVE_LOBBY|ERR|Game is not waiting for players\n");
-        player_error_message_inc(fd);
-        return;
-    }
-
-    // Leave the lobby
-    auto game = player->game;
-    game->player1 = nullptr; // we can be sure that the host is the player1
-    player->state = P_S_IN_MAIN_MENU;
     player->number_of_error_messages = 0;
+    auto game = player->game;
+    if (game->state == G_S_WAITING_FOR_PLAYERS) {
+        game->player1 = nullptr; // we can be sure that the host is the player1
+        player->state = P_S_IN_MAIN_MENU;
 
-    std::cout << "Player " << player->name << " left a lobby " << game->id << std::endl;
-    send_message(fd, "LEAVE_LOBBY|OK\n");
+        std::cout << "Player " << player->name << " left a game " << game->id << std::endl;
+        send_message(fd, "LEAVE_GAME|OK\n");
+    }
+    // Game is in the middle of the playing or is paused
+    else {
+        auto opponent = game->get_opponent(player);
+        if (opponent)
+            game_status(opponent->socket, {});
+
+        if (game->player1 == player) {
+            game->player1 = nullptr;
+        } else {
+            game->player2 = nullptr;
+        }
+
+        player->game = nullptr;
+        player->state = P_S_IN_MAIN_MENU;
+        player->can_play = false;
+
+        send_message(fd, "LEAVE_GAME|OK\n");
+        if (opponent) {
+            send_message(opponent->socket, "LEAVE_GAME_OPPONENT|OK\n");
+            if (game->state != G_S_FINISHED) {
+                game->game_over = false;
+                game->state = G_S_FINISHED;
+                game_over(opponent->socket);
+            }
+        }
+    }
 }
 
-void Server::list_lobbies(int fd, const std::vector<std::string> &params) {
+void Server::list_games(int fd, const std::vector<std::string> &params) {
     auto player = get_player_by_fd(fd);
 
     // Check if the number of parameters is correct
     if (!params.empty()) {
-        std::cerr << "ERROR: Invalid number of parameters for LIST_LOBBIES command" << std::endl;
-        send_message(fd, "LIST_LOBBIES|ERR|Invalid number of parameters\n");
+        std::cerr << "ERROR: Invalid number of parameters for LIST_GAMES command" << std::endl;
+        send_message(fd, "LIST_GAMES|ERR|Invalid number of parameters\n");
         player_error_message_inc(fd);
         return;
     }
@@ -444,14 +463,14 @@ void Server::list_lobbies(int fd, const std::vector<std::string> &params) {
     // Check if the player is in main menu
     if (player->state != P_S_IN_MAIN_MENU) {
         std::cerr << "ERROR: Player " << player->name << " is not in main menu" << std::endl;
-        send_message(fd, "LIST_LOBBIES|ERR|You are not in main menu\n");
+        send_message(fd, "LIST_GAMES|ERR|You are not in main menu\n");
         player_error_message_inc(fd);
         return;
     }
 
-    // Send the list of lobbies
+    // Send the list of games
     player->number_of_error_messages = 0;
-    std::string message = "LIST_LOBBIES|OK";
+    std::string message = "LIST_GAMES|OK";
     for (const auto& game : games) {
         if (game->state == G_S_WAITING_FOR_PLAYERS)
             message += "|" + std::to_string(game->id) + "," + game->player1->name;
@@ -587,53 +606,6 @@ void Server::reroll(int fd, const std::vector<std::string> &params) {
     message = message.substr(0, message.size() - 1);
     message += "\n";
     send_message(opponent->socket, message);
-}
-
-void Server::leave_game(int fd, const std::vector<std::string> &params) {
-    auto player = get_player_by_fd(fd);
-
-    // Check if the number of parameters is correct
-    if (!params.empty()) {
-        std::cerr << "ERROR: Invalid number of parameters for LEAVE_GAME command" << std::endl;
-        send_message(fd, "LEAVE_GAME|ERR|Invalid number of parameters\n");
-        player_error_message_inc(fd);
-        return;
-    }
-
-    // Check if the player is in a game
-    if (player->state != P_S_IN_GAME) {
-        std::cerr << "ERROR: Player " << player->name << " is not in a game" << std::endl;
-        send_message(fd, "LEAVE_GAME|ERR|You are not in a game\n");
-        player_error_message_inc(fd);
-        return;
-    }
-
-    // Leave the game
-    player->number_of_error_messages = 0;
-    auto game = player->game;
-    auto opponent = game->get_opponent(player);
-    if (opponent)
-        game_status(opponent->socket, {});
-
-    if (game->player1 == player) {
-        game->player1 = nullptr;
-    } else {
-        game->player2 = nullptr;
-    }
-
-    player->game = nullptr;
-    player->state = P_S_IN_MAIN_MENU;
-    player->can_play = false;
-
-    send_message(fd, "LEAVE_GAME|OK\n");
-    if (opponent) {
-        send_message(opponent->socket, "LEAVE_GAME_OPPONENT|OK\n");
-        if (game->state != G_S_FINISHED) {
-            game->game_over = false;
-            game->state = G_S_FINISHED;
-            game_over(opponent->socket);
-        }
-    }
 }
 
 void Server::game_over(int fd) {
