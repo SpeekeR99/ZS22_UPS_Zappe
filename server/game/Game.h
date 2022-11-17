@@ -16,6 +16,8 @@ public:
     std::shared_ptr<Player> player2;
     GameState state;
     bool is_new_round;
+    bool is_end_round;
+    bool send_end_of_round;
     bool paused;
     bool game_over;
 

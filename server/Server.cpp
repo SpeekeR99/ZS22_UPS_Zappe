@@ -52,6 +52,7 @@ void Server::init_commands_map() {
     commands["LIST_GAMES"] = &Server::list_games;
     commands["GAME_STATUS"] = &Server::game_status;
     commands["REROLL"] = &Server::reroll;
+    commands["ACCEPT_END_OF_ROUND"] = &Server::accept_end_of_round;
 }
 
 void Server::clear_char_buffer() {
@@ -289,6 +290,7 @@ void Server::reconnect(int fd, const std::vector<std::string> &params) {
     player->hand = player_reconnecting_to->hand;
     player->score = player_reconnecting_to->score;
     player->can_play = player_reconnecting_to->can_play;
+    player->accepted_end_of_round = player_reconnecting_to->accepted_end_of_round;
     if (player->game) {
         player->game->paused = false;
         if (player->game->state == G_S_WAITING_FOR_PLAYERS)
@@ -441,8 +443,8 @@ void Server::leave_game(int fd, const std::vector<std::string> &params) {
         if (opponent) {
             send_message(opponent->socket, "LEAVE_GAME_OPPONENT|OK\n");
             if (game->state != G_S_FINISHED) {
-                game->game_over = false;
                 game->state = G_S_FINISHED;
+                game->game_over = false;
                 game_over(opponent->socket);
             }
         }
@@ -608,6 +610,54 @@ void Server::reroll(int fd, const std::vector<std::string> &params) {
     send_message(opponent->socket, message);
 }
 
+void Server::accept_end_of_round(int fd, const std::vector<std::string> &params) {
+    auto player = get_player_by_fd(fd);
+
+    // Check if the number of parameters is correct
+    if (!params.empty()) {
+        std::cerr << "ERROR: Invalid number of parameters for ACCEPT_END_OF_ROUND command" << std::endl;
+        send_message(fd, "ACCEPT_END_OF_ROUND|ERR|Invalid number of parameters\n");
+        player_error_message_inc(fd);
+        return;
+    }
+
+    // Check if the player is in a game
+    if (player->state != P_S_IN_GAME) {
+        std::cerr << "ERROR: Player " << player->name << " is not in a game" << std::endl;
+        send_message(fd, "ACCEPT_END_OF_ROUND|ERR|You are not in a game\n");
+        player_error_message_inc(fd);
+        return;
+    }
+
+    // Check if the game is at the end of round
+    auto game = player->game;
+    if (!game->is_end_round) {
+        std::cerr << "ERROR: Game " << game->id << " is not at the end of round" << std::endl;
+        send_message(fd, "ACCEPT_END_OF_ROUND|ERR|Game is not at the end of round\n");
+        player_error_message_inc(fd);
+        return;
+    }
+
+    //Check if the player did not already accept the end of round
+    if (player->accepted_end_of_round) {
+        std::cerr << "ERROR: Player " << player->name << " already accepted the end of round" << std::endl;
+        send_message(fd, "ACCEPT_END_OF_ROUND|ERR|You already accepted the end of round\n");
+        player_error_message_inc(fd);
+        return;
+    }
+
+    // Accept the end of round
+    player->number_of_error_messages = 0;
+    player->accepted_end_of_round = true;
+    send_message(fd, "ACCEPT_END_OF_ROUND|OK\n");
+
+    auto opponent = game->get_opponent(player);
+    if (opponent->accepted_end_of_round) {
+        game->is_end_round = false;
+        game->start_round();
+    }
+}
+
 void Server::game_over(int fd) {
     auto player = get_player_by_fd(fd);
 
@@ -628,7 +678,7 @@ void Server::game_over(int fd) {
     else
         send_message(fd, "GAME_OVER|OK|WIN\n");
 
-    std::cout << "Game " << game->id << " is over";
+    std::cout << "Game " << game->id << " is over" << std::endl;
 }
 
 void Server::run() {
@@ -714,6 +764,15 @@ void Server::run() {
         for (auto &i : games) {
             if (i->state == G_S_PLAYING && i->is_new_round) {
                 i->is_new_round = false;
+                game_status(i->player1->socket, {});
+                game_status(i->player2->socket, {});
+            }
+        }
+
+        // Check if there are any end of rounds in the games
+        for (auto &i : games) {
+            if (i->state == G_S_PLAYING && i->send_end_of_round) {
+                i->send_end_of_round = false;
                 game_status(i->player1->socket, {});
                 game_status(i->player2->socket, {});
             }

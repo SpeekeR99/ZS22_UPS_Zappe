@@ -25,6 +25,7 @@ public:
     bool can_play;
     bool handshake;
     bool logged_in;
+    bool accepted_end_of_round;
     int number_of_error_messages;
     std::chrono::time_point<std::chrono::high_resolution_clock> disconnect_time;
 

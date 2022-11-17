@@ -63,6 +63,7 @@ private:
     void list_games(int fd, const std::vector<std::string> &params);
     void game_status(int fd, const std::vector<std::string> &params);
     void reroll(int fd, const std::vector<std::string> &params);
+    void accept_end_of_round(int fd, const std::vector<std::string> &params);
     void game_over(int fd);
 
 public:

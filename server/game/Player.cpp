@@ -1,6 +1,6 @@
 #include "Player.h"
 
-Player::Player(int socket) : socket{socket}, score(0) {
+Player::Player(int socket) : socket{socket}, score(0), accepted_end_of_round(false) {
     state = PlayerState::P_S_IN_MAIN_MENU;
     can_play = false;
     handshake = false;
