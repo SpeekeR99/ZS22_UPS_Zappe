@@ -15,7 +15,7 @@ def get_font(size, unicode=False):
         return pygame.font.Font("gui/assets/font.ttf", size)
 
 
-def init_players_dice_buttons():
+def init_players_dice_buttons(player_dice, opponent_dice):
     player_dice_buttons_temp, opponent_dice_buttons_temp = [], []
     for i, die in enumerate(player_dice):
         player_dice_buttons_temp.append(Button(
@@ -74,14 +74,14 @@ login_screen_text2 = "IP: "
 login_screen_text3 = "PORT: "
 main_menu_text = "MAIN MENU"
 waiting_for_players_text = "WAITING FOR PLAYERS"
-quick_play_btn_text = "QUICK PLAY"
+create_game_btn_text = "CREATE GAME"
+join_game_btn_text = "JOIN GAME"
 quit_btn_text = "QUIT"
 reroll_btn_text = "REROLL"
 back_btn_text = "BACK"
+leave_game_btn_text = "LEAVE GAME"
 login_btn_text = "LOGIN"
+accept_end_of_round_btn_text = "ACCEPT END OF ROUND"
 
-dice = ['\u2680', '\u2681', '\u2682', '\u2683', '\u2684', '\u2685']
-# TODO: takhle inicializace je pěkně na hovno, chci info od serveru
-player_dice = [dice[0], dice[1], dice[2], dice[3], dice[4]]
-opponent_dice = [dice[1], dice[2], dice[3], dice[4], dice[5]]
-player_dice_buttons, opponent_dice_buttons = init_players_dice_buttons()
+dice = ['', '\u2680', '\u2681', '\u2682', '\u2683', '\u2684', '\u2685']
+player_dice_buttons, opponent_dice_buttons = [], []

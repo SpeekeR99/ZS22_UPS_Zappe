@@ -127,7 +127,20 @@ bool Server::does_game_exist(uint32_t id) {
 }
 
 void Server::disconnect_player(int fd) {
-    log("Client" + std::to_string(fd) + " disconnected");
+    auto player = get_player_by_fd(fd);
+    auto game = player->game;
+    auto opponent = game->get_opponent(player);
+    if (game) {
+        if (game->player1 == player) game->player1 = nullptr;
+        else if (game->player2 == player) game->player2 = nullptr;
+    }
+    player->game = nullptr;
+    if (opponent) {
+        game_status(opponent->socket, {});
+        usleep(250000);
+        game_over(opponent->socket);
+    }
+    log("Client " + std::to_string(fd) + " disconnected");
     close(fd);
     FD_CLR(fd, &client_socks);
     players.erase(std::remove_if(players.begin(), players.end(),
@@ -324,6 +337,11 @@ void Server::reconnect(int fd, const std::vector<std::string> &params) {
 
     log("Player " + player->name + " reconnected");
     send_message(fd, "RECONNECT|OK\n");
+
+    if (player->game) {
+        usleep(250000);
+        game_status(fd, {});
+    }
 }
 
 void Server::create_game(int fd, const std::vector<std::string> &params) {
@@ -456,6 +474,7 @@ void Server::leave_game(int fd, const std::vector<std::string> &params) {
             if (game->state != G_S_FINISHED) {
                 game->state = G_S_FINISHED;
                 game->game_over = false;
+                usleep(250000);
                 game_over(opponent->socket);
             }
         }
@@ -525,9 +544,11 @@ void Server::game_status(int fd, const std::vector<std::string> &params) {
     std::string message = "GAME_STATUS|OK|";
     for (auto &i : player->hand)
         message += std::to_string(i) + ",";
+    message = message.substr(0, message.size() - 1);
     message += "|";
     for (auto &i : opponent->hand)
         message += std::to_string(i) + ",";
+    message = message.substr(0, message.size() - 1);
     message += "|" + std::to_string(player->score) + "|" + std::to_string(opponent->score) + "\n";
     send_message(fd, message);
 }
@@ -795,6 +816,7 @@ void Server::run() {
                 i->game_over = false;
                 game_status(i->player1->socket, {});
                 game_status(i->player2->socket, {});
+                usleep(250000);
                 game_over(i->player1->socket);
                 game_over(i->player2->socket);
             }
@@ -817,6 +839,7 @@ void Server::run() {
                     auto opponent = i->game->get_opponent(i);
                     if (opponent) {
                         game_status(opponent->socket, {});
+                        usleep(250000);
                         game_over(opponent->socket);
                     }
                 }
