@@ -1,6 +1,5 @@
 import socket
 import select
-import time
 import datetime
 from gui.gui_scenes import *
 
