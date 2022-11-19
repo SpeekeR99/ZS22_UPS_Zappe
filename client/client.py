@@ -171,8 +171,6 @@ if data != "LOGIN|OK":
     if data == "LOGIN|ERR|Nickname is already taken":
         send_and_log(client_socket, "RECONNECT|{}".format(nickname))
         data = recv_and_log(client_socket)
-        can_play = True
-        enemy_played = False
         accepted_end_of_round = False
         game_over = ""
         if data != "RECONNECT|OK":
@@ -208,17 +206,36 @@ while True:
                     current_scene = play
                     player_dice = [int(x) for x in data[2].split(",")]
                     opponent_dice = [int(x) for x in data[3].split(",")]
-                    if player_score is data[4] and opponent_score is data[5]:
+                    if data[6] == "1":
                         can_play = True
+                    else:
+                        can_play = False
+                    if data[7] == "1":
                         enemy_played = False
+                    else:
+                        enemy_played = True
+                    if can_play and not enemy_played:
                         accepted_end_of_round = False
                         game_over = ""
                     player_score = data[4]
                     opponent_score = data[5]
+                    if player_score == 3:
+                        game_over = "You won!"
+                    elif opponent_score == 3:
+                        game_over = "You lost!"
+                    if player_score == 3 and opponent_score == 3:
+                        game_over = "Draw!"
+                    opponent_nick = data[8]
                     args = [player_dice, opponent_dice, player_score, opponent_score, nickname, opponent_nick, can_play, enemy_played, game_over]
                 elif data[0] == "REROLL_OPPONENT" and data[1] == "OK":
                     opponent_dice = [int(x) for x in data[2].split(",")]
                     enemy_played = True
+                    args = [player_dice, opponent_dice, player_score, opponent_score, nickname, opponent_nick, can_play, enemy_played, game_over]
+                elif data[0] == "OPPONENT_DISCONNECTED":
+                    opponent_nick = opponent_nick + " (Disconnected)"
+                    args = [player_dice, opponent_dice, player_score, opponent_score, nickname, opponent_nick, can_play, enemy_played, game_over]
+                elif data[0] == "OPPONENT_RECONNECTED":
+                    opponent_nick = opponent_nick[:-15]
                     args = [player_dice, opponent_dice, player_score, opponent_score, nickname, opponent_nick, can_play, enemy_played, game_over]
                 elif data[0] == "GAME_OVER" and data[1] == "OK":
                     if data[2] == "WIN":

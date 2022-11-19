@@ -198,6 +198,7 @@ void Server::alive(int fd, const std::vector<std::string> &params) {
     }
 
     get_player_by_fd(fd)->number_of_error_messages = 0;
+    log("Sending ALIVE response to client " + std::to_string(fd));
     send_message(fd, "ALIVE\n");
 }
 
@@ -211,6 +212,7 @@ void Server::handshake(int fd, const std::vector<std::string> &params) {
     }
 
     get_player_by_fd(fd)->number_of_error_messages = 0;
+    log("Sending HELLO response to client " + std::to_string(fd));
     send_message(fd, "HELLO\n");
     get_player_by_fd(fd)->handshake = true;
 }
@@ -267,7 +269,13 @@ void Server::logout(int fd, const std::vector<std::string> &params) {
 
     log("Player " + player->name + " logged out");
     send_message(fd, "GOODBYE\n");
-    disconnect_player(fd);
+
+    close(fd);
+    FD_CLR(fd, &client_socks);
+    players.erase(std::remove_if(players.begin(), players.end(),
+                                 [fd](const std::shared_ptr<Player>& player) {
+                                     return player->socket == fd;
+                                 }), players.end());
 }
 
 void Server::reconnect(int fd, const std::vector<std::string> &params) {
@@ -326,6 +334,12 @@ void Server::reconnect(int fd, const std::vector<std::string> &params) {
             player->game->player1 = player;
         else
             player->game->player2 = player;
+
+        if (player->game->get_opponent(player)) {
+            log("Player " + player->name + " reconnected to game " + std::to_string(player->game->id));
+            send_message(player->game->get_opponent(player)->socket, "OPPONENT_RECONNECTED\n");
+            usleep(250000);
+        }
     }
     else
         player->state = P_S_IN_MAIN_MENU;
@@ -468,6 +482,7 @@ void Server::leave_game(int fd, const std::vector<std::string> &params) {
         player->state = P_S_IN_MAIN_MENU;
         player->can_play = false;
 
+        log("Player " + player->name + " left a game " + std::to_string(game->id));
         send_message(fd, "LEAVE_GAME|OK\n");
         if (opponent) {
             send_message(opponent->socket, "LEAVE_GAME_OPPONENT|OK\n");
@@ -508,6 +523,7 @@ void Server::list_games(int fd, const std::vector<std::string> &params) {
             message += "|" + std::to_string(game->id) + "," + game->player1->name;
     }
     message += "\n";
+    log("Player " + player->name + " requested a list of games");
     send_message(fd, message);
 }
 
@@ -533,7 +549,7 @@ void Server::game_status(int fd, const std::vector<std::string> &params) {
     // Check if the opponent exists
     if (!player->game->get_opponent(player)) {
         log("ERROR: Opponent of " + player->name + " is no longer in the game");
-        send_message(fd, "GAME_STATUS|ERR|Opponent already left, cannot access information about him");
+        send_message(fd, "GAME_STATUS|ERR|Opponent already left, cannot access information about him\n");
         return;
     }
 
@@ -549,7 +565,8 @@ void Server::game_status(int fd, const std::vector<std::string> &params) {
     for (auto &i : opponent->hand)
         message += std::to_string(i) + ",";
     message = message.substr(0, message.size() - 1);
-    message += "|" + std::to_string(player->score) + "|" + std::to_string(opponent->score) + "\n";
+    message += "|" + std::to_string(player->score) + "|" + std::to_string(opponent->score) + "|" + std::to_string(player->can_play) + "|" + std::to_string(opponent->can_play) + "|" + opponent->name + "\n";
+    log("Player " + player->name + " requested a game status");
     send_message(fd, message);
 }
 
@@ -611,13 +628,6 @@ void Server::reroll(int fd, const std::vector<std::string> &params) {
         return;
     }
 
-    // Check if the game is not paused
-    if (player->game->paused) {
-        log("ERROR: Game " + std::to_string(player->game->id) + " is paused");
-        send_message(fd, "REROLL|ERR|Game is paused\n");
-        return;
-    }
-
     // Reroll the indices
     player->number_of_error_messages = 0;
     std::array<int, NUMBER_OF_DICE> arr = {
@@ -631,7 +641,11 @@ void Server::reroll(int fd, const std::vector<std::string> &params) {
         message += std::to_string(i) + ",";
     message = message.substr(0, message.size() - 1);
     message += "\n";
+    log("Player " + player->name + " rerolled the dice");
     send_message(fd, message);
+
+    if (player->game->paused)
+        return;
 
     auto opponent = player->game->get_opponent(player);
     message = "REROLL_OPPONENT|OK|";
@@ -681,6 +695,7 @@ void Server::accept_end_of_round(int fd, const std::vector<std::string> &params)
     // Accept the end of round
     player->number_of_error_messages = 0;
     player->accepted_end_of_round = true;
+    log("Player " + player->name + " accepted the end of round");
     send_message(fd, "ACCEPT_END_OF_ROUND|OK\n");
 
     auto opponent = game->get_opponent(player);
@@ -777,7 +792,11 @@ void Server::run() {
                             log("Client " + std::to_string(fd) + " (" + player->name + ") suddenly disconnected");
                             player->logged_in = false;
                             player->state = P_S_DISCONNECTED;
-                            if (player->game) player->game->paused = true;
+                            if (player->game) {
+                                player->game->paused = true;
+                                if (player->game->get_opponent(player))
+                                    send_message(player->game->get_opponent(player)->socket, "OPPONENT_DISCONNECTED\n");
+                            }
                             player->disconnect_time = std::chrono::high_resolution_clock::now();
                             close(fd);
                             FD_CLR(fd, &client_socks);
@@ -836,12 +855,20 @@ void Server::run() {
                     i->game->paused = false;
                     i->game->game_over = false;
                     i->game->state = G_S_FINISHED;
+
                     auto opponent = i->game->get_opponent(i);
                     if (opponent) {
                         game_status(opponent->socket, {});
                         usleep(250000);
-                        game_over(opponent->socket);
                     }
+
+                    if (i->game->player1 == i)
+                        i->game->player1 = nullptr;
+                    else if (i->game->player2 == i)
+                        i->game->player2 = nullptr;
+
+                    if (opponent)
+                        game_over(opponent->socket);
                 }
             }
         }

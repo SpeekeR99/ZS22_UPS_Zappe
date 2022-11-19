@@ -230,6 +230,8 @@ def play(args):
     screen.blit(player_nick_text, player_nick_rect)
 
     opponent_nick_text = get_font(40).render(opponent_nick, True, color_palette["secondary"])
+    if opponent_nick.find("Disconnected") != -1:
+        opponent_nick_text = get_font(40).render(opponent_nick, True, color_palette["secondary_dark"])
     opponent_nick_rect = opponent_nick_text.get_rect(center=(width / 2, height / 3 + 50))
     screen.blit(opponent_nick_text, opponent_nick_rect)
 
@@ -241,10 +243,23 @@ def play(args):
     opponent_score_rect = opponent_score_text.get_rect(center=(width / 2, height / 3))
     screen.blit(opponent_score_text, opponent_score_rect)
 
+    accept_end_of_round = None
     if args[8] != "":
         game_over_text = get_font(50).render(args[8], True, color_palette["secondary"])
         game_over_rect = game_over_text.get_rect(center=(width / 2, height / 2))
         screen.blit(game_over_text, game_over_rect)
+    else:
+        accept_end_of_round = Button(
+            image=None,
+            pos=(width / 2, height / 2),
+            text_input=accept_end_of_round_btn_text,
+            font=get_font(25),
+            base_color=color_palette["secondary_dark"],
+            hovering_color=color_palette["green"]
+        )
+        blit_rect_behind_button(screen, accept_end_of_round, 175, color_palette["primary_dark"])
+        accept_end_of_round.change_color(mouse_pos)
+        accept_end_of_round.update(screen)
 
     reroll = Button(
         image=None,
@@ -264,18 +279,6 @@ def play(args):
         hovering_color=color_palette["red"]
     )
     blit_rect_behind_button(screen, back, 175, color_palette["primary_dark"])
-    if not args[6] and args[7] and args[8] == "":
-        accept_end_of_round = Button(
-            image=None,
-            pos=(width / 2, height / 2),
-            text_input=accept_end_of_round_btn_text,
-            font=get_font(25),
-            base_color=color_palette["secondary_dark"],
-            hovering_color=color_palette["green"]
-        )
-        blit_rect_behind_button(screen, accept_end_of_round, 175, color_palette["primary_dark"])
-        accept_end_of_round.change_color(mouse_pos)
-        accept_end_of_round.update(screen)
 
     for i, button in enumerate(player_dice_buttons):
         if selected[i] == 1:
@@ -300,8 +303,8 @@ def play(args):
                 if args[6] and args[8] == "":
                     gui_input = "REROLL|" + str(selected[0]) + "," + str(selected[1]) + "," + str(selected[2]) + "," + str(selected[3]) + "," + str(selected[4])
                     selected = [0, 0, 0, 0, 0]
-            if not args[6] and args[7] and args[8] == "":
-                if accept_end_of_round.check_for_input(mouse_pos):
+            if accept_end_of_round is not None and accept_end_of_round.check_for_input(mouse_pos):
+                if not args[6] and args[7]:
                     gui_input = "ACCEPT_END_OF_ROUND"
             for i, button in enumerate(player_dice_buttons):
                 if args[6] and args[8] == "" and button.check_for_input(mouse_pos):
