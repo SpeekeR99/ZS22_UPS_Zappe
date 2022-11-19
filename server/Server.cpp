@@ -794,8 +794,8 @@ void Server::run() {
 
                     // It is a new connection
                     if (fd == server_socket) {
-                        socklen_t len_addr;
                         struct sockaddr_in client_address{};
+                        socklen_t len_addr = sizeof( (struct sockaddr *) &client_address);
                         int client_socket = accept(server_socket, (struct sockaddr *) &client_address, &len_addr);
                         if (client_socket < 0) {
                             log("ERROR: accept");
