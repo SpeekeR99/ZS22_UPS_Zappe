@@ -243,6 +243,11 @@ ip = sys.argv[1]
 port = int(sys.argv[2])
 nickname = sys.argv[3]
 
+# Check nickname length
+if len(nickname) > 20:
+    print("Nickname cannot be longer than 20 characters")
+    sys.exit(1)
+
 # Create client socket
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 # Try to connect to server

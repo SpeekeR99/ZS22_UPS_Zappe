@@ -85,10 +85,17 @@ void Server::send_message(int fd, const std::string &message) {
     send(fd, message.c_str(), message.length(), 0);
 }
 
-void Server::recv_message(int fd, int a2read) {
+bool Server::recv_message(int fd, int a2read) {
+    if (a2read >= BUFFER_LEN) {
+        log("ERROR: Client " + std::to_string(fd) + " has been disconnected for sending too long message");
+        send_message(fd, "ERR: Too long message. Disconnecting...\n");
+        disconnect_player(fd);
+        return false;
+    }
     recv(fd, char_buffer, a2read, 0);
     buffer = std::string(char_buffer);
     clear_char_buffer();
+    return true;
 }
 
 std::vector<std::string> Server::tokenize_buffer(char delim) const {
@@ -134,17 +141,21 @@ bool Server::does_game_exist(uint32_t id) {
 void Server::disconnect_player(int fd) {
     auto player = get_player_by_fd(fd);
     auto game = player->game;
-    auto opponent = game->get_opponent(player);
+
     if (game) {
         if (game->player1 == player) game->player1 = nullptr;
         else if (game->player2 == player) game->player2 = nullptr;
+
+        player->game = nullptr;
+
+        auto opponent = game->get_opponent(player);
+        if (opponent && opponent->state != P_S_DISCONNECTED) {
+            game_status(opponent->socket, {});
+            usleep(250000);
+            game_over(opponent->socket);
+        }
     }
-    player->game = nullptr;
-    if (opponent && opponent->state != P_S_DISCONNECTED) {
-        game_status(opponent->socket, {});
-        usleep(250000);
-        game_over(opponent->socket);
-    }
+
     log("Client " + std::to_string(fd) + " disconnected");
     close(fd);
     FD_CLR(fd, &client_socks);
@@ -241,6 +252,14 @@ void Server::login(int fd, const std::vector<std::string> &params) {
     if (player->logged_in) {
         log("ERROR: Player " + player->name + " is already logged in");
         send_message(fd, "LOGIN|ERR|You are already logged in\n");
+        player_error_message_inc(fd);
+        return;
+    }
+
+    // Check if the name is valid (not too long)
+    if (name.size() > MAX_NAME_LEN) {
+        log("ERROR: Nickname cannot be longer than " + std::to_string(MAX_NAME_LEN) + " characters");
+        send_message(fd, "LOGIN|ERR|Nickname cannot be longer than " + std::to_string(MAX_NAME_LEN) + " characters\n");
         player_error_message_inc(fd);
         return;
     }
@@ -710,7 +729,7 @@ void Server::accept_end_of_round(int fd, const std::vector<std::string> &params)
     send_message(fd, "ACCEPT_END_OF_ROUND|OK\n");
 
     auto opponent = game->get_opponent(player);
-    if (opponent->accepted_end_of_round) {
+    if (opponent && opponent->state != P_S_DISCONNECTED && opponent->accepted_end_of_round) {
         game->is_end_round = false;
         game->start_round();
     }
@@ -793,8 +812,8 @@ void Server::run() {
 
                         // Client sent some bytes
                         if (a2read > 0) {
-                            recv_message(fd, a2read);
-                            handle_incoming_message(fd);
+                            if (recv_message(fd, a2read))
+                                handle_incoming_message(fd);
 
                             // Client disconnected (not on purpose)
                         } else {
@@ -802,11 +821,12 @@ void Server::run() {
                             log("Client " + std::to_string(fd) + " (" + player->name + ") suddenly disconnected");
                             player->logged_in = false;
                             player->state = P_S_DISCONNECTED;
-                            if (player->game) {
-                                player->game->paused = true;
-                                auto opponent = player->game->get_opponent(player);
+                            auto game = player->game;
+                            if (game) {
+                                game->paused = true;
+                                auto opponent = game->get_opponent(player);
                                 if (opponent && opponent->state != P_S_DISCONNECTED)
-                                    send_message(player->game->get_opponent(player)->socket, "OPPONENT_DISCONNECTED\n");
+                                    send_message(opponent->socket, "OPPONENT_DISCONNECTED\n");
                             }
                             player->disconnect_time = std::chrono::high_resolution_clock::now();
                             close(fd);
@@ -826,8 +846,12 @@ void Server::run() {
         for (auto &i: games) {
             if (i->state == G_S_PLAYING && i->is_new_round) {
                 i->is_new_round = false;
-                game_status(i->player1->socket, {});
-                game_status(i->player2->socket, {});
+                auto player1 = i->player1;
+                auto player2 = i->player2;
+                if (player1 && player1->state != P_S_DISCONNECTED)
+                    game_status(player1->socket, {});
+                if (player2 && player2->state != P_S_DISCONNECTED)
+                    game_status(player2->socket, {});
             }
         }
 
@@ -835,8 +859,12 @@ void Server::run() {
         for (auto &i: games) {
             if (i->state == G_S_PLAYING && i->send_end_of_round) {
                 i->send_end_of_round = false;
-                game_status(i->player1->socket, {});
-                game_status(i->player2->socket, {});
+                auto player1 = i->player1;
+                auto player2 = i->player2;
+                if (player1 && player1->state != P_S_DISCONNECTED)
+                    game_status(player1->socket, {});
+                if (player2 && player2->state != P_S_DISCONNECTED)
+                    game_status(player2->socket, {});
             }
         }
 
@@ -844,72 +872,86 @@ void Server::run() {
         for (auto &i: games) {
             if (i->state == G_S_FINISHED && i->game_over) {
                 i->game_over = false;
-                game_status(i->player1->socket, {});
-                game_status(i->player2->socket, {});
+                auto player1 = i->player1;
+                auto player2 = i->player2;
+                if (player1 && player1->state != P_S_DISCONNECTED)
+                    game_status(player1->socket, {});
+                if (player2 && player2->state != P_S_DISCONNECTED)
+                    game_status(player2->socket, {});
                 usleep(250000);
-                game_over(i->player1->socket);
-                game_over(i->player2->socket);
+                if (player1 && player1->state != P_S_DISCONNECTED)
+                    game_over(player1->socket);
+                if (player2 && player2->state != P_S_DISCONNECTED)
+                    game_over(player2->socket);
             }
         }
 
         // Check if there are any players to be deleted
-        for (auto &i: disconnected_players) {
+        for (auto it = disconnected_players.begin(); it != disconnected_players.end();) {
+            bool removed = false;
             auto now = std::chrono::high_resolution_clock::now();
-            auto diff = std::chrono::duration_cast<std::chrono::seconds>(now - i->disconnect_time).count();
+            auto diff = std::chrono::duration_cast<std::chrono::seconds>(now - (*it)->disconnect_time).count();
             if (diff > DC_TIMEOUT_SEC) {
-                log("Player " + i->name + " timed out");
-                disconnected_players.erase(std::remove_if(disconnected_players.begin(), disconnected_players.end(),
-                                                          [i](const std::shared_ptr<Player> &player) {
-                                                              return player == i;
-                                                          }), disconnected_players.end());
-                if (i->game) {
-                    i->game->paused = false;
-                    i->game->game_over = false;
-                    i->game->state = G_S_FINISHED;
+                log("Player " + (*it)->name + " timed out");
+                auto game = (*it)->game;
+                if (game) {
+                    game->paused = false;
+                    game->game_over = false;
+                    game->state = G_S_FINISHED;
 
-                    auto opponent = i->game->get_opponent(i);
+                    auto opponent = game->get_opponent((*it));
                     if (opponent && opponent->state != P_S_DISCONNECTED) {
                         game_status(opponent->socket, {});
                         usleep(250000);
                     }
 
-                    if (i == i->game->player1)
-                        i->game->player1 = nullptr;
+                    if ((*it) == game->player1)
+                        game->player1 = nullptr;
                     else
-                        i->game->player2 = nullptr;
+                        game->player2 = nullptr;
 
                     if (opponent && opponent->state != P_S_DISCONNECTED)
                         game_over(opponent->socket);
                 }
+                it = disconnected_players.erase(it);
+                removed = true;
             }
+            if (!removed)
+                ++it;
         }
 
         // Check if there are any games to be deleted
-        for (auto &i: games) {
+        for (auto it = games.begin(); it != games.end();) {
+            bool removed = false;
             bool is_to_be_deleted = true;
-            auto player1 = i->player1;
-            auto player2 = i->player2;
+            auto player1 = (*it)->player1;
+            auto player2 = (*it)->player2;
             // Check if there is at least one player in the game
-            for (auto &j: players) {
-                if (player1 == j || player2 == j) {
-                    is_to_be_deleted = false;
-                    break;
+            if (player1)
+                for (auto &j: players) {
+                    if (player1 == j || player2 == j) {
+                        is_to_be_deleted = false;
+                        break;
+                    }
                 }
-            }
-            for (auto &j: disconnected_players) {
-                if (player1 == j || player2 == j) {
-                    is_to_be_deleted = false;
-                    break;
+
+            if (player2)
+                for (auto &j: disconnected_players) {
+                    if (player1 == j || player2 == j) {
+                        is_to_be_deleted = false;
+                        break;
+                    }
                 }
-            }
+
             // No player found, game is empty
             if (is_to_be_deleted) {
-                log("Game " + std::to_string(i->id) + " deleted, no players are connected");
-                games.erase(std::remove_if(games.begin(), games.end(),
-                                           [i](const std::shared_ptr<Game> &game) {
-                                               return game->id == i->id;
-                                           }), games.end());
+                log("Game " + std::to_string((*it)->id) + " deleted, no players are connected");
+                it = games.erase(it);
+                removed = true;
             }
+
+            if (!removed)
+                ++it;
         }
 
     }

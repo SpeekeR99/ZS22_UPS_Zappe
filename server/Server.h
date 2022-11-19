@@ -23,6 +23,8 @@
 
 /** Size of the buffer used for communication between server and client */
 constexpr size_t BUFFER_LEN = 1024;
+/** Maximum size of the player name */
+constexpr size_t MAX_NAME_LEN = 20;
 /** Separator of the commands and parameters */
 constexpr char COMMAND_DELIMITER = '|';
 /** Maximum time in seconds to wait for a client to reconnect */
@@ -98,8 +100,9 @@ private:
      * Message is stored in the buffer member attribute
      * @param fd File descriptor of the socket
      * @param a2read Number of bytes to read
+     * @return True if the message was read successfully, false otherwise
      */
-    void recv_message(int fd, int a2read);
+    bool recv_message(int fd, int a2read);
 
     /**
      * Function that tokenizes the buffer member attribute by a given delimiter (separator)
