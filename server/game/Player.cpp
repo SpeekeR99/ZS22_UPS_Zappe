@@ -1,11 +1,11 @@
 #include "Player.h"
 
-Player::Player(int socket) : socket{socket}, hand{} {
+Player::Player(int socket) : socket{socket}, hand{}, random{} {
     name = "";
     game = nullptr;
     score = 0;
     state = P_S_IN_MAIN_MENU;
-    random = std::make_shared<MyRandom>();
+    random = nullptr;
     can_play = false;
     handshake = false;
     logged_in = false;

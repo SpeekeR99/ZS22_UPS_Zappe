@@ -51,6 +51,8 @@ private:
     char char_buffer[BUFFER_LEN]{};
     /** Buffer for communication (string version for easier usage) */
     std::string buffer;
+    /** Random number generator */
+    std::shared_ptr<MyRandom> random;
     /** Vector of players that are currently connected */
     std::vector<std::shared_ptr<Player>> players;
     /** Vector of players that are currently disconnected */

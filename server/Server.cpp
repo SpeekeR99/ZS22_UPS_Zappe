@@ -1,6 +1,6 @@
 #include "Server.h"
 
-Server::Server(int port) : game_id(0) {
+Server::Server(int port) : game_id(0), random{} {
     // Create socket
     server_socket = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -33,6 +33,7 @@ Server::Server(int port) : game_id(0) {
     log("Server started on port " + std::to_string(port));
 
     init_commands_map();
+    random = std::make_unique<MyRandom>();
 }
 
 Server::~Server() {
@@ -802,7 +803,9 @@ void Server::run() {
                             continue;
                         }
                         FD_SET(client_socket, &client_socks);
-                        players.push_back(std::make_shared<Player>(client_socket));
+                        auto player = std::make_shared<Player>(client_socket);
+                        player->random = this->random;
+                        players.push_back(player);
                         log("New client connected: " + std::to_string(client_socket));
 
                         // It is a message from a client
