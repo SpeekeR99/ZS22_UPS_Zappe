@@ -577,6 +577,13 @@ void Server::game_status(int fd, const std::vector<std::string> &params) {
 
     // Check if the opponent exists
     if (!player->game->get_opponent(player)) {
+        if (player->game->player1 == player)
+            player->game->player1 = nullptr;
+        else
+            player->game->player2 = nullptr;
+        player->game = nullptr;
+        player->state = P_S_IN_MAIN_MENU;
+        player->can_play = false;
         log("ERROR: Opponent of " + player->name + " is no longer in the game");
         send_message(fd, "GAME_STATUS|ERR|Opponent already left, cannot access information about him\n");
         return;
