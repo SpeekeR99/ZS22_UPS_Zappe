@@ -40,14 +40,18 @@ Server::~Server() {
 }
 
 void Server::log(const std::string &message) {
+    auto time = std::time(nullptr);
+    auto time_string = std::ctime(&time);
+    time_string[std::string((time_string)).size() - 1] = '\0';
+
     auto log = std::ofstream(LOG_FILE, std::ios::app);
-    log << message << std::endl;
+    log << "[" << time_string << "]: " << message << std::endl;
     log.close();
 
     if (message.find("ERR") != std::string::npos)
-        std::cerr << message << std::endl;
+        std::cerr << "[" << time_string << "]: " << message << std::endl;
     else
-        std::cout << message << std::endl;
+        std::cout << "[" << time_string << "]: " << message << std::endl;
 }
 
 void Server::init_commands_map() {
@@ -136,7 +140,7 @@ void Server::disconnect_player(int fd) {
         else if (game->player2 == player) game->player2 = nullptr;
     }
     player->game = nullptr;
-    if (opponent) {
+    if (opponent && opponent->state != P_S_DISCONNECTED) {
         game_status(opponent->socket, {});
         usleep(250000);
         game_over(opponent->socket);
@@ -474,7 +478,7 @@ void Server::leave_game(int fd, const std::vector<std::string> &params) {
         // Game is in the middle of the playing or is paused
     else {
         auto opponent = game->get_opponent(player);
-        if (opponent)
+        if (opponent && opponent->state != P_S_DISCONNECTED)
             game_status(opponent->socket, {});
 
         if (game->player1 == player) {
@@ -489,7 +493,7 @@ void Server::leave_game(int fd, const std::vector<std::string> &params) {
 
         log("Player " + player->name + " left a game " + std::to_string(game->id));
         send_message(fd, "LEAVE_GAME|OK\n");
-        if (opponent) {
+        if (opponent && opponent->state != P_S_DISCONNECTED) {
             send_message(opponent->socket, "LEAVE_GAME_OPPONENT|OK\n");
             if (game->state != G_S_FINISHED) {
                 game->state = G_S_FINISHED;
@@ -715,12 +719,11 @@ void Server::accept_end_of_round(int fd, const std::vector<std::string> &params)
 void Server::game_over(int fd) {
     auto player = get_player_by_fd(fd);
 
-    player->number_of_error_messages = 0;
     auto game = player->game;
     auto opponent = game->get_opponent(player);
 
     // Check if opponent exists
-    if (opponent) {
+    if (opponent && opponent->state != P_S_DISCONNECTED) {
         if (player->score > opponent->score)
             send_message(fd, "GAME_OVER|OK|WIN\n");
         else if (player->score < opponent->score)
@@ -801,7 +804,8 @@ void Server::run() {
                             player->state = P_S_DISCONNECTED;
                             if (player->game) {
                                 player->game->paused = true;
-                                if (player->game->get_opponent(player))
+                                auto opponent = player->game->get_opponent(player);
+                                if (opponent && opponent->state != P_S_DISCONNECTED)
                                     send_message(player->game->get_opponent(player)->socket, "OPPONENT_DISCONNECTED\n");
                             }
                             player->disconnect_time = std::chrono::high_resolution_clock::now();
@@ -864,17 +868,17 @@ void Server::run() {
                     i->game->state = G_S_FINISHED;
 
                     auto opponent = i->game->get_opponent(i);
-                    if (opponent) {
+                    if (opponent && opponent->state != P_S_DISCONNECTED) {
                         game_status(opponent->socket, {});
                         usleep(250000);
                     }
 
-                    if (i->game->player1 == i)
+                    if (i == i->game->player1)
                         i->game->player1 = nullptr;
-                    else if (i->game->player2 == i)
+                    else
                         i->game->player2 = nullptr;
 
-                    if (opponent)
+                    if (opponent && opponent->state != P_S_DISCONNECTED)
                         game_over(opponent->socket);
                 }
             }

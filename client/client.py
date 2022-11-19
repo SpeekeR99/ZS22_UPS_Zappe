@@ -1,6 +1,6 @@
 import socket
 import select
-import time
+import datetime
 import pygame
 from gui.gui_scenes import *
 
@@ -41,9 +41,10 @@ def log(message):
     Logs message to stdout and log file
     :param message: Message to log
     """
-    print(message)
+    ct = datetime.datetime.now()
+    print("[{}]: {}".format(ct, message))
     with open(LOG_FILE, "a") as f:
-        f.write(message)
+        f.write("[{}]: {}".format(ct, message))
 
 
 def send_and_log(client_sock, data):
@@ -127,6 +128,9 @@ def join_game(client_sock, gui_input):
         opponent_nick = data[2]
         current_scene = play
         args = []
+    # Game might be already full or not exist at all, update list of games
+    elif data[0] == "JOIN_GAME" and data[1] == "ERR":
+        list_games(client_sock, "LIST_GAMES")
 
 
 def leave_game(client_sock, gui_input):
@@ -296,7 +300,7 @@ while True:
             data = recv_and_log(client_socket)
             # If server disconnected, exit
             if len(data) == 0:
-                print("Server is unavailable")
+                log("Server is unavailable")
                 sys.exit(1)
             # If server sent a message, process it
             else:
