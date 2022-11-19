@@ -1,17 +1,21 @@
 #include "Player.h"
 
-Player::Player(int socket) : socket{socket}, score(0), accepted_end_of_round(false) {
-    state = PlayerState::P_S_IN_MAIN_MENU;
+Player::Player(int socket) : socket{socket}, hand{} {
+    name = "";
+    game = nullptr;
+    score = 0;
+    state = P_S_IN_MAIN_MENU;
+    random = std::make_shared<MyRandom>();
     can_play = false;
     handshake = false;
     logged_in = false;
+    accepted_end_of_round = false;
     number_of_error_messages = 0;
-    game = nullptr;
-    random = std::make_shared<MyRandom>();
 }
 
 void Player::randomize_hand() {
-    for (auto &i : hand) i = random->roll_a_die();
+    for (auto &i: hand)
+        i = random->roll_a_die();
 }
 
 void Player::reroll_hand(const std::array<int, NUMBER_OF_DICE> &indices) {
@@ -59,11 +63,12 @@ int Player::evaluate_hand() {
             }
             if (points < 1) // One pair
                 set_score(points, score_num, 1, i + 1, i + 1);
-        }
-        else {
-            if (counts[0] == 1 && counts[1] == 1 && counts[2] == 1 && counts[3] == 1 && counts[4] == 1 && points < 4) // Small straight
+        } else {
+            if (counts[0] == 1 && counts[1] == 1 && counts[2] == 1 && counts[3] == 1 && counts[4] == 1 &&
+                points < 4) // Small straight
                 set_score(points, score_num, 4, 1, 5);
-            else if (counts[1] == 1 && counts[2] == 1 && counts[3] == 1 && counts[4] == 1 && counts[5] == 1 && points < 5) // Big straight
+            else if (counts[1] == 1 && counts[2] == 1 && counts[3] == 1 && counts[4] == 1 && counts[5] == 1 &&
+                     points < 5) // Big straight
                 set_score(points, score_num, 5, 2, 6);
             else if (points == 0) // Nothing
                 set_score(points, score_num, 0, 6, 6);
