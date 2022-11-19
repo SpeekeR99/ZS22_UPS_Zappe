@@ -380,11 +380,14 @@ void Server::reconnect(int fd, const std::vector<std::string> &params) {
     log("Player " + player->name + " reconnected");
     send_message(fd, "RECONNECT|OK\n");
 
-    // Send the game state if the player is in a game
-    if (player->game) {
+    // Send the game state if the player is in a game and the opponent is still connected too
+    if (player->game && player->game->get_opponent(player)) {
         usleep(250000);
         game_status(fd, {});
     }
+    // Game exists, but opponent has already left, so it's pointless to connect back to the game
+    else if (player->game && !player->game->get_opponent(player))
+        leave_game(fd, {});
 }
 
 void Server::create_game(int fd, const std::vector<std::string> &params) {
@@ -577,13 +580,6 @@ void Server::game_status(int fd, const std::vector<std::string> &params) {
 
     // Check if the opponent exists
     if (!player->game->get_opponent(player)) {
-        if (player->game->player1 == player)
-            player->game->player1 = nullptr;
-        else
-            player->game->player2 = nullptr;
-        player->game = nullptr;
-        player->state = P_S_IN_MAIN_MENU;
-        player->can_play = false;
         log("ERROR: Opponent of " + player->name + " is no longer in the game");
         send_message(fd, "GAME_STATUS|ERR|Opponent already left, cannot access information about him\n");
         return;
