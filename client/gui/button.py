@@ -1,5 +1,20 @@
 class Button:
+    """
+    Class for the button object
+    Button has an image (not used really), a position, text, font, base color, and hovering color
+    Button can be clicked on and should change color when hovered over
+    """
+
     def __init__(self, image, pos, text_input, font, base_color, hovering_color):
+        """
+        Constructor for the button object
+        :param image: Image for the button
+        :param pos: Position of the button (x, y) (center of the button)
+        :param text_input: Text to be displayed on the button
+        :param font: Font of the text
+        :param base_color: Base color of the button
+        :param hovering_color: Hovering color of the button
+        """
         self.image = image
         self.x_pos = pos[0]
         self.y_pos = pos[1]
@@ -13,17 +28,29 @@ class Button:
         self.text_rect = self.text.get_rect(center=(self.x_pos, self.y_pos))
 
     def update(self, screen):
+        """
+        Blits the button
+        :param screen: Screen to be blitted on
+        """
         if self.image is not None:
             screen.blit(self.image, self.rect)
         screen.blit(self.text, self.text_rect)
 
     def check_for_input(self, position):
+        """
+        Checks if the button is clicked on
+        :param position: Position of the mouse
+        """
         if position[0] in range(self.rect.left, self.rect.right) and position[1] in range(self.rect.top,
                                                                                           self.rect.bottom):
             return True
         return False
 
     def change_color(self, position):
+        """
+        Changes the color of the button when hovered over
+        :param position: Position of the mouse
+        """
         if position[0] in range(self.rect.left, self.rect.right) and position[1] in range(self.rect.top,
                                                                                           self.rect.bottom):
             self.text = self.font.render(self.text_input, True, self.hovering_color)
