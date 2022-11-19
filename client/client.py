@@ -43,7 +43,7 @@ def log(message):
     ct = datetime.datetime.now()
     print("[{}]: {}".format(ct, message))
     with open(LOG_FILE, "a") as f:
-        f.write("[{}]: {}".format(ct, message))
+        f.write("[{}]: {}\n".format(ct, message))
 
 
 def send_and_log(client_sock, data):
