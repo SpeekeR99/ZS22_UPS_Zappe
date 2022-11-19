@@ -329,7 +329,6 @@ while True:
                 except socket.error as e:
                     log("ERROR: Server is unavailable")
                     new_socket.close()
-                    time.sleep(0.1)
 
             # If server sent a message, process it
             else:

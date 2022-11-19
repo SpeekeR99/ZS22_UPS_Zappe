@@ -465,7 +465,7 @@ def disconnected(args):
     gui_input = ""
 
     # Create the MAIN MENU text
-    server_down_text = get_font(75).render(server_is_down_text, True, color_palette["primary"])
+    server_down_text = get_font(75).render(server_is_down_text, True, color_palette["red"])
     server_down_rect = server_down_text.get_rect(center=(width / 2, 100))
     screen.blit(server_down_text, server_down_rect)
 
