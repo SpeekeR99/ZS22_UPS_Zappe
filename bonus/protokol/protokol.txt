@@ -8,105 +8,135 @@ Druhy zprávy:
 	S -> C: DATA, OK, ERROR, KEEP_ALIVE
 
 Zprávy:
-	// handshake
-	Handshake:
-		C -> S: HELLO
-		S -> C: HELLO
 
-	// bezprostřední přihlášení po navázání spojení
-	Login:
-		C -> S: LOGIN|<username>
-		S -> C: OK
-		S -> C: ERROR|<err_code>
+    Ping
+        C -> S: "ALIVE"
+        S -> C: "ALIVE"
+        nebo
+        S -> C: "ALIVE|ERR|<error_message>"
+            Možná chybová hlášení jsou:
+                Invalid number of parameters
 
-	// záměrné zavření hry
-	Logout
-		C -> S: LOGOUT
-		S -> C: GOODBYE
+    Handshake
+        C -> S: "HELLO"
+        S -> C: "HELLO"
+        nebo
+        S -> C: "HELLO|ERR|<error_message>"
+            Možná chybová hlášení jsou:
+                Invalid number of parameters
 
-	// znovu přihlášení po nečekaném disconnectu
-	Reconnect:
-		C -> S: RECONNECT|<username>
-		S -> C: OK
-		S -> C: ERROR|<err_code>
+    Login
+        C -> S: "LOGIN|<nickname>"
+        S -> C: "LOGIN|OK"
+        nebo
+        S -> C: "LOGIN|ERR|<error_message>"
+            Možná chybová hlášení jsou:
+                Invalid number of parameters
+                You are already logged in
+                Nickname cannot be longer than XX characters
+                Nickname is already taken
 
-	// vytvoření nového lobby
-	Create lobby:
-		C -> S: CREATE_LOBBY
-		S -> C: OK|<lobby_id>
-		S -> C: ERROR|<err_code>
+    Logout
+        C -> S: "LOGOUT"
+        S -> C: "GOODBYE"
+        nebo
+        S -> C: "GOODBYE|ERR|<error_message>"
+            Možná chybová hlášení jsou:
+                Invalid number of parameters
 
-	// připojení se do lobby
-	Join lobby:
-		C -> S: JOIN_LOBBY
-		S -> C: OK|<opponent_username>
-		S -> C: ERROR|<err_code>
+    Reconnect
+        C -> S: "RECONNECT|<nickname>"
+        S -> C: "RECONNECT|OK"
+        nebo
+        S -> C: "RECONNECT|ERR|<error_message>"
+            Možná chybová hlášení jsou:
+                Invalid number of parameters
+                Name does not exist
+                Player is not disconnected
 
-	// připojení oponenta do lobby
-	Opponent joined lobby:
-		S -> C: OPPONENT_JOINED|<opponent_username>
-		C -> S: OK
+    Opponent Reconnect
+        S -> C: "OPPONENT_RECONNECTED"
+        C -> S: "OK"
 
-	// odpojení se z lobby (ne ze hry) (tedy hráč čeká na druhého a odejde z lobby při čekání)
-	Leave lobby:
-		C -> S: LEAVE_LOBBY
-		S -> C: OK
-		S -> C: ERROR|<err_code>
+    Create Game
+        C -> S: "CREATE_GAME"
+        S -> C: "CREATE_GAME|OK|<game_id>"
+        nebo
+        S -> C: "CREATE_GAME|ERR|<error_message>"
+            Možná chybová hlášení jsou:
+                Invalid number of parameters
+                You are not in main menu
 
-	// vypsání dostupných lobbies
-	List lobbies:
-		C -> S: LIST_LOBBIES
-		S -> C: OK|<lobby_id1>|<lobby_id2>|...
-		S -> C: ERROR|<err_code>
+    Join Game
+        C -> S: "JOIN_GAME|<game_id>"
+        S -> C: "JOIN_GAME|OK|<opponent_nickname>"
+        nebo
+        S -> C: "JOIN_GAME|ERR|<error_message>"
+            Možná chybová hlášení jsou:
+                Invalid number of parameters
+                You are not in main menu
+                Game does not exist
+                Game is full
 
-	// odpojení se z probíhající hry -> vyhraje protihráč
-	Leave game:
-		C -> S: LEAVE_GAME
-		S -> C: OK
-		S -> C: ERROR|<err_code>
+    Leave Game
+        C -> S: "LEAVE_GAME"
+        S -> C: "LEAVE_GAME|OK"
+        nebo
+        S -> C: "LEAVE_GAME|ERR|<error_message>"
+            Možná chybová hlášení jsou:
+                Invalid number of parameters
+                You are not in game
 
-	// hráč chce zahrát svůj tah (tedy reroll-nout určité kostky)
-	Play a turn:
-		C -> S: REROLL|<index1>|<index2>|...|<index5>
-		S -> C: OK|<number1>|<number2>|...|<number5>
-		S -> C: ERROR|<err_code>
+    Opponent Leave Game
+        S -> C: "LEAVE_GAME_OPPONENT|OK"
+        C -> S: "OK"
 
-	// server informuje hráče, že je na tahu
-	Your turn:
-		S -> C: YOUR_TURN
-		C -> S: OK
+    List Games
+        C -> S: "LIST_GAMES"
+        S -> C: "LIST_GAMES|OK|<game_id_1>,<game_id_2>,...,<game_id_n>"
+        nebo
+        S -> C: "LIST_GAMES|ERR|<error_message>"
+            Možná chybová hlášení jsou:
+                Invalid number of parameters
+                You are not in main menu
 
-    // server informuje hráče, že se oponent odpojil
-    Opponent disconnected:
-        S -> C: OPPONENT_DISCONNECTED
-        C -> S: OK
+    Game Status
+        C -> S: "GAME_STATUS"
+        S -> C: "GAME_STATUS|OK|<player_dice>|<opponent_dice>|<player_score>|<opponent_score>|<player_turn>|<opponent_turn>|<opponent_nickname>"
+        nebo
+        S -> C: "GAME_STATUS|ERR|<error_message>"
+            Možná chybová hlášení jsou:
+                Invalid number of parameters
+                You are not in game
+                Opponent already left, cannot access information about him
 
-	// všichni si rerollnuli kostky -> aktualizovat stav všem hráčům
-	Everyone played:
-		S -> C: GAME_STATUS|<data>
-		C -> S: OK
+    Reroll
+        C -> S: "REROLL|<flag_bit_1>,<flag_bit_2>,<flag_bit_3>,<flag_bit_4>,<flag_bit_5>"
+        S -> C: "REROLL|OK|<dice_1>,<dice_2>,<dice_3>,<dice_4>,<dice_5>"
+        nebo
+        S -> C: "REROLL|ERR|<error_message>"
+            Možná chybová hlášení jsou:
+                Invalid number of parameters
+                You are not in game
+                You cannot play
+                Invalid flag bit XX
+                Invalid number of flag bits
 
-	// žádost od klienta k serveru o aktuálním stavu hry (např. po reconnectu)
-	Explicitní žádost o stav hry:
-		C -> S: GAME_STATUS
-		S -> C: OK|<data>
-		S -> C: ERROR|<err_code>
+    Opponent Reroll
+        S -> C: "REROLL_OPPONENT|OK|<dice_1>,<dice_2>,<dice_3>,<dice_4>,<dice_5>"
+        C -> S: "OK"
 
-	// hra je dohrána
-	Game over:
-		S -> C: GAME_OVER|<win/loss>
-		C -> S: OK
+    End Round
+        C -> S: "ACCEPT_END_OF_ROUND"
+        S -> C: "ACCEPT_END_OF_ROUND|OK"
+        nebo
+        S -> C: "ACCEPT_END_OF_ROUND|ERR|<error_message>"
+            Možná chybová hlášení jsou:
+                Invalid number of parameters
+                You are not in game
+                Game is not at the end of round
+                You already accepted the end of round
 
-	// hráč chce hrát znovu
-	Play again:
-		C -> S: PLAY_AGAIN
-		S -> C: OK
-		S -> C: ERROR|<err_code>
-
-	// ping pro kontrolu, že obě strany "žijí"
-	Keep alive:
-		C -> S: ALIVE
-		S -> C: ALIVE
-
-		S -> C: ALIVE
-		C -> S: ALIVE
+    Game Over
+        S -> C: "GAME_OVER|OK|<WIN/LOSS/DRAW>"
+        C -> S: "OK"

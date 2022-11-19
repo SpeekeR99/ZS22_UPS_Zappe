@@ -657,7 +657,7 @@ void Server::reroll(int fd, const std::vector<std::string> &params) {
     // Check if the player input the right amount of flags
     if (indices.size() != NUMBER_OF_DICE) {
         log("ERROR: Player " + player->name + " tried to input more or less flag bits");
-        send_message(fd, "REROLL|ERR|Invalid number of indices\n");
+        send_message(fd, "REROLL|ERR|Invalid number of flag bits\n");
         player_error_message_inc(fd);
         return;
     }
