@@ -930,21 +930,18 @@ void Server::run() {
             auto player1 = (*it)->player1;
             auto player2 = (*it)->player2;
             // Check if there is at least one player in the game
-            if (player1)
-                for (auto &j: players) {
-                    if (player1 == j || player2 == j) {
-                        is_to_be_deleted = false;
-                        break;
-                    }
+            for (auto &j: players) {
+                if (player1 == j || player2 == j) {
+                    is_to_be_deleted = false;
+                    break;
                 }
-
-            if (player2)
-                for (auto &j: disconnected_players) {
-                    if (player1 == j || player2 == j) {
-                        is_to_be_deleted = false;
-                        break;
-                    }
+            }
+            for (auto &j: disconnected_players) {
+                if (player1 == j || player2 == j) {
+                    is_to_be_deleted = false;
+                    break;
                 }
+            }
 
             // No player found, game is empty
             if (is_to_be_deleted) {
