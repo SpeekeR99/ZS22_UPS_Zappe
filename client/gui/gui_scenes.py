@@ -441,3 +441,44 @@ def play(args):
     # Update the screen
     clock.tick(60)
     pygame.display.update()
+
+
+def disconnected(args):
+    """
+    This function is called when the server is unavailable and the client gets disconnected
+    :param args: Arguments for the scene
+    """
+
+    # Fill the screen with the black color
+    screen.fill(color_palette["black"])
+
+    # Get the mouse position
+    mouse_pos = pygame.mouse.get_pos()
+
+    # Modify the WAITING FOR OPPONENT text
+    global elapsed_time, reconnecting_text, gui_input
+    if elapsed_time < int(pygame.time.get_ticks() / 1000):
+        elapsed_time = int(pygame.time.get_ticks() / 1000)
+        reconnecting_text = change_dots(reconnecting_text)
+
+    # Reset the GUI input
+    gui_input = ""
+
+    # Create the MAIN MENU text
+    server_down_text = get_font(75).render(server_is_down_text, True, color_palette["primary"])
+    server_down_rect = server_down_text.get_rect(center=(width / 2, 100))
+    screen.blit(server_down_text, server_down_rect)
+
+    # Create the RECONNECTING text
+    loading_text = get_font(50).render(reconnecting_text, True, color_palette["secondary"])
+    loading_rect = loading_text.get_rect(center=(width / 2, height / 2))
+    screen.blit(loading_text, loading_rect)
+
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            pygame.quit()
+            sys.exit(0)
+
+    # Update the display
+    clock.tick(60)
+    pygame.display.update()

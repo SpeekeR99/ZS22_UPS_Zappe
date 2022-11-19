@@ -124,6 +124,10 @@ back_btn_text = "BACK"
 leave_game_btn_text = "LEAVE GAME"
 # Accept end of round button text - "ACCEPT" by default
 accept_end_of_round_btn_text = "ACCEPT END OF ROUND"
+# Server is down text - "SERVER IS DOWN" by default
+server_is_down_text = "SERVER IS DOWN"
+# Reconnecting text - "RECONNECTING" by default
+reconnecting_text = "RECONNECTING"
 
 # Dice as unicodes, first string is empty, because there is no die face with 0 value, so 1 - 6 are used
 dice = ['', '\u2680', '\u2681', '\u2682', '\u2683', '\u2684', '\u2685']

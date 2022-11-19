@@ -1,7 +1,7 @@
 import socket
 import select
+import time
 import datetime
-import pygame
 from gui.gui_scenes import *
 
 # Path to log file
@@ -66,6 +66,38 @@ def recv_and_log(client_sock):
     data = client_sock.recv(1024)
     log("Received from server: {}".format(data.decode()))
     return data.decode().strip()
+
+
+def handshake_and_login():
+    """
+    Function handshakes and logs in to server
+    """
+    global accepted_end_of_round, game_over
+    # Handshake with server
+    send_and_log(client_socket, "HELLO")
+    data = recv_and_log(client_socket)
+    if data != "HELLO":
+        log("ERROR: Server didn't respond with HELLO")
+        sys.exit(1)
+
+    # Send nickname to server
+    send_and_log(client_socket, "LOGIN|{}".format(nickname))
+    data = recv_and_log(client_socket)
+    if data != "LOGIN|OK":
+        log("ERROR: Server didn't respond with LOGIN|OK")
+
+        # Try to reconnect if the nickname is already taken
+        if data == "LOGIN|ERR|Nickname is already taken":
+            send_and_log(client_socket, "RECONNECT|{}".format(nickname))
+            data = recv_and_log(client_socket)
+            accepted_end_of_round = False
+            game_over = ""
+            if data != "RECONNECT|OK":
+                log("ERROR: Server didn't respond with RECONNECT|OK")
+                sys.exit(1)
+
+        else:
+            sys.exit(1)
 
 
 def logout(client_sock, gui_input):
@@ -258,31 +290,8 @@ except socket.error as e:
     sys.exit(1)
 log("Successfully connected to server at {}:{}".format(ip, port))
 
-# Handshake with server
-send_and_log(client_socket, "HELLO")
-data = recv_and_log(client_socket)
-if data != "HELLO":
-    log("ERROR: Server didn't respond with HELLO")
-    sys.exit(1)
-
-# Send nickname to server
-send_and_log(client_socket, "LOGIN|{}".format(nickname))
-data = recv_and_log(client_socket)
-if data != "LOGIN|OK":
-    log("ERROR: Server didn't respond with LOGIN|OK")
-
-    # Try to reconnect if the nickname is already taken
-    if data == "LOGIN|ERR|Nickname is already taken":
-        send_and_log(client_socket, "RECONNECT|{}".format(nickname))
-        data = recv_and_log(client_socket)
-        accepted_end_of_round = False
-        game_over = ""
-        if data != "RECONNECT|OK":
-            log("ERROR: Server didn't respond with RECONNECT|OK")
-            sys.exit(1)
-
-    else:
-        sys.exit(1)
+# Handshake and login
+handshake_and_login()
 
 # Socket file descriptor
 socket_fd = client_socket.fileno()
@@ -305,8 +314,23 @@ while True:
             data = recv_and_log(client_socket)
             # If server disconnected, exit
             if len(data) == 0:
-                log("Server is unavailable")
-                sys.exit(1)
+                current_scene = disconnected
+                new_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                try:
+                    new_socket.connect((ip, port))
+                    client_socket.shutdown(socket.SHUT_RDWR)
+                    client_socket.close()
+                    client_socket = new_socket
+                    log("Successfully reconnected to server at {}:{}".format(ip, port))
+                    handshake_and_login()
+                    socket_fd = client_socket.fileno()
+                    read_fds = [socket_fd]
+                    current_scene = main_menu
+                except socket.error as e:
+                    log("ERROR: Server is unavailable")
+                    new_socket.close()
+                    time.sleep(0.1)
+
             # If server sent a message, process it
             else:
                 data = data.split("|")
