@@ -327,6 +327,12 @@ void Server::reconnect(int fd, const std::vector<std::string> &params) {
     }
 
     std::shared_ptr<Player> player_reconnecting_to;
+    for (auto &i: players) {
+        if (i->name == name) {
+            player_reconnecting_to = i;
+            break;
+        }
+    }
     for (auto &i: disconnected_players) {
         if (i->name == name) {
             player_reconnecting_to = i;
@@ -336,7 +342,7 @@ void Server::reconnect(int fd, const std::vector<std::string> &params) {
 
     // Check if the destination player is really disconnected
     if (player_reconnecting_to->logged_in || player_reconnecting_to->state != P_S_DISCONNECTED) {
-        log("ERROR: Player " + player->name + " is not disconnected");
+        log("ERROR: Player " + name + " is not disconnected");
         send_message(fd, "RECONNECT|ERR|Player is not disconnected\n");
         player_error_message_inc(fd);
         return;
@@ -344,13 +350,14 @@ void Server::reconnect(int fd, const std::vector<std::string> &params) {
 
     // Restore the player
     player->name = name;
-    player->logged_in = true;
-    player->number_of_error_messages = 0;
     player->game = player_reconnecting_to->game;
     player->hand = player_reconnecting_to->hand;
     player->score = player_reconnecting_to->score;
+    player->random = random;
     player->can_play = player_reconnecting_to->can_play;
+    player->logged_in = true;
     player->accepted_end_of_round = player_reconnecting_to->accepted_end_of_round;
+    player->number_of_error_messages = 0;
     if (player->game) {
         player->game->paused = false;
         if (player->game->state == G_S_WAITING_FOR_PLAYERS)
@@ -385,7 +392,7 @@ void Server::reconnect(int fd, const std::vector<std::string> &params) {
         usleep(250000);
         game_status(fd, {});
     }
-    // Game exists, but opponent has already left, so it's pointless to connect back to the game
+        // Game exists, but opponent has already left, so it's pointless to connect back to the game
     else if (player->game && !player->game->get_opponent(player))
         leave_game(fd, {});
 }
@@ -799,7 +806,7 @@ void Server::run() {
                     // It is a new connection
                     if (fd == server_socket) {
                         struct sockaddr_in client_address{};
-                        socklen_t len_addr = sizeof( (struct sockaddr *) &client_address);
+                        socklen_t len_addr = sizeof((struct sockaddr *) &client_address);
                         int client_socket = accept(server_socket, (struct sockaddr *) &client_address, &len_addr);
                         if (client_socket < 0) {
                             log("ERROR: accept");
