@@ -269,7 +269,7 @@ def list_of_games(args):
             # Check if a GAME button is pressed and try to join the game
             for i, game_button in enumerate(game_buttons):
                 if game_button.check_for_input(mouse_pos):
-                    gui_input = "JOIN_GAME|" + args[0][i].split(",")[0]
+                    gui_input = "JOIN_GAME|" + str(int(args[0][i].split(",")[0]) + page * 5)
 
     # Update the display
     clock.tick(60)
