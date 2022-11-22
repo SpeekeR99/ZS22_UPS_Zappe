@@ -161,6 +161,14 @@ private:
     void handle_incoming_message(int fd);
 
     /**
+     * Function that just receives the OK message from the client
+     * Does nothing at all, because OK response is not guaranteed because of NetCat player :)
+     * @param fd File descriptor of the socket
+     * @param params Params of the command (not used)
+     */
+    void ok_response(int fd, const std::vector<std::string> &params);
+
+    /**
      * Function that handles the "ALIVE" command
      * C -> S : ALIVE
      * S -> C : ALIVE

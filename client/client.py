@@ -368,6 +368,7 @@ while True:
 
                 # If server sent a message about REROLL_OPPONENT process it and update the GUI accordingly
                 elif data[0] == "REROLL_OPPONENT" and data[1] == "OK":
+                    send_and_log(client_socket, "OK")
                     opponent_dice = [int(x) for x in data[2].split(",")]
                     opponent_turn = False
                     args = [player_dice, opponent_dice, player_score, opponent_score, nickname, opponent_nick,
@@ -375,18 +376,21 @@ while True:
 
                 # If server sent a message about OPPONENT_DISCONNECTED process it and update the GUI accordingly
                 elif data[0] == "OPPONENT_DISCONNECTED":
+                    send_and_log(client_socket, "OK")
                     opponent_nick = opponent_nick + " (Disconnected)"
                     args = [player_dice, opponent_dice, player_score, opponent_score, nickname, opponent_nick,
                             player_turn, opponent_turn, game_over]
 
                 # If server sent a message about OPPONENT_RECONNECTED process it and update the GUI accordingly
                 elif data[0] == "OPPONENT_RECONNECTED":
+                    send_and_log(client_socket, "OK")
                     opponent_nick = opponent_nick[:-len(" (Disconnected)")]
                     args = [player_dice, opponent_dice, player_score, opponent_score, nickname, opponent_nick,
                             player_turn, opponent_turn, game_over]
 
                 # If server sent a message about GAME_OVER process it and update the GUI accordingly
                 elif data[0] == "GAME_OVER" and data[1] == "OK":
+                    send_and_log(client_socket, "OK")
                     if data[2] == "WIN":
                         game_over = "You won!"
                     elif data[2] == "LOSS":

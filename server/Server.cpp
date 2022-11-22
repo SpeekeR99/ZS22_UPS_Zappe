@@ -56,7 +56,7 @@ void Server::log(const std::string &message) {
 }
 
 void Server::init_commands_map() {
-    commands["OK"] = nullptr;
+    commands["OK"] = &Server::ok_response;
     commands["ALIVE"] = &Server::alive;
     commands["HELLO"] = &Server::handshake;
     commands["LOGIN"] = &Server::login;
@@ -205,6 +205,10 @@ void Server::handle_incoming_message(int fd) {
         send_message(fd, "CMD|ERR|Unknown command|" + cmd + "\n");
         player_error_message_inc(fd);
     }
+}
+
+void Server::ok_response(int fd, const std::vector<std::string> &args) {
+    // Do nothing about OK response
 }
 
 void Server::alive(int fd, const std::vector<std::string> &params) {
