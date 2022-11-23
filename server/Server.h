@@ -29,6 +29,8 @@ constexpr size_t MAX_NAME_LEN = 20;
 constexpr char COMMAND_DELIMITER = '|';
 /** Maximum time in seconds to wait for a client to reconnect */
 constexpr uint32_t DC_TIMEOUT_SEC = 30;
+/** Number of nano seconds in a second */
+constexpr long long int NANOSEC_IN_SEC = 1000000000L;
 /** Filepath to the log file */
 constexpr const char *LOG_FILE = "server.log";
 

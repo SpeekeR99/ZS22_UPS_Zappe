@@ -152,7 +152,7 @@ void Server::disconnect_player(int fd) {
         auto opponent = game->get_opponent(player);
         if (opponent && opponent->state != P_S_DISCONNECTED) {
             game_status(opponent->socket, {});
-            usleep(250000);
+            nanosleep((const struct timespec[]){{0, NANOSEC_IN_SEC / 4}}, nullptr);
             game_over(opponent->socket);
         }
     }
@@ -295,8 +295,10 @@ void Server::logout(int fd, const std::vector<std::string> &params) {
         return;
     }
 
-    if (player->game)
+    if (player->game) {
         leave_game(fd, {});
+        nanosleep((const struct timespec[]){{0, NANOSEC_IN_SEC / 4}}, nullptr);
+    }
 
     log("Player " + player->name + " logged out");
     send_message(fd, "GOODBYE\n");
@@ -377,7 +379,7 @@ void Server::reconnect(int fd, const std::vector<std::string> &params) {
         if (player->game->get_opponent(player)) {
             log("Player " + player->name + " reconnected to game " + std::to_string(player->game->id));
             send_message(player->game->get_opponent(player)->socket, "OPPONENT_RECONNECTED\n");
-            usleep(250000);
+            nanosleep((const struct timespec[]){{0, NANOSEC_IN_SEC / 4}}, nullptr);
         }
     } else
         player->state = P_S_IN_MAIN_MENU;
@@ -393,7 +395,7 @@ void Server::reconnect(int fd, const std::vector<std::string> &params) {
 
     // Send the game state if the player is in a game and the opponent is still connected too
     if (player->game && player->game->get_opponent(player)) {
-        usleep(250000);
+        nanosleep((const struct timespec[]){{0, NANOSEC_IN_SEC / 4}}, nullptr);
         game_status(fd, {});
     }
         // Game exists, but opponent has already left, so it's pointless to connect back to the game
@@ -532,7 +534,7 @@ void Server::leave_game(int fd, const std::vector<std::string> &params) {
             if (game->state != G_S_FINISHED) {
                 game->state = G_S_FINISHED;
                 game->game_over = false;
-                usleep(250000);
+                nanosleep((const struct timespec[]){{0, NANOSEC_IN_SEC / 4}}, nullptr);
                 game_over(opponent->socket);
             }
         }
@@ -895,7 +897,7 @@ void Server::run() {
                     game_status(player1->socket, {});
                 if (player2 && player2->state != P_S_DISCONNECTED)
                     game_status(player2->socket, {});
-                usleep(250000);
+                nanosleep((const struct timespec[]){{0, NANOSEC_IN_SEC / 4}}, nullptr);
                 if (player1 && player1->state != P_S_DISCONNECTED)
                     game_over(player1->socket);
                 if (player2 && player2->state != P_S_DISCONNECTED)
@@ -919,7 +921,7 @@ void Server::run() {
                     auto opponent = game->get_opponent((*it));
                     if (opponent && opponent->state != P_S_DISCONNECTED) {
                         game_status(opponent->socket, {});
-                        usleep(250000);
+                        nanosleep((const struct timespec[]){{0, NANOSEC_IN_SEC / 4}}, nullptr);
                     }
 
                     if ((*it) == game->player1)
