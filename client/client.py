@@ -281,9 +281,11 @@ if len(nickname) > 20:
 
 # Create client socket
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+client_socket.settimeout(5)
 # Try to connect to server
 try:
     client_socket.connect((ip, port))
+    client_socket.settimeout(None)
 except socket.error as e:
     log("ERROR: Could not connect to server: {}".format(e))
     sys.exit(1)
