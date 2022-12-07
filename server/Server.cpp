@@ -1,13 +1,15 @@
 #include "Server.h"
 
-Server::Server(int port) : game_id(0), random{} {
+Server::Server(const std::string &ip, int port) : game_id(0), random{} {
     // Create socket
     server_socket = socket(AF_INET, SOCK_STREAM, 0);
 
     // Set socket options
     int param = 1;
-    if (setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, (const char *) &param, sizeof(int)) == -1)
+    if (setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, (const char *) &param, sizeof(int)) == -1) {
         log("ERROR: setsockopt");
+        exit(EXIT_FAILURE);
+    }
     else
         log("OK: setsockopt");
 
@@ -16,21 +18,32 @@ Server::Server(int port) : game_id(0), random{} {
     memset(&server_address, 0, sizeof(struct sockaddr_in));
     server_address.sin_family = AF_INET;
     server_address.sin_port = htons(port);
-    server_address.sin_addr.s_addr = INADDR_ANY;
+    if (ip.empty())
+        server_address.sin_addr.s_addr = htonl(INADDR_ANY);
+    else
+        server_address.sin_addr.s_addr = inet_addr(ip.c_str());
 
     // Bind socket to address
     if (!bind(server_socket, (struct sockaddr *) &server_address, sizeof(struct sockaddr_in)))
         log("OK: bind");
-    else
+    else {
         log("ERROR: bind");
+        exit(EXIT_FAILURE);
+    }
 
     // Listen for incoming connections
     if (!listen(server_socket, 5))
         log("OK: listen");
-    else
+    else {
         log("ERROR: listen");
+        exit(EXIT_FAILURE);
+    }
 
-    log("Server started on port " + std::to_string(port));
+    struct sockaddr_in sin;
+    socklen_t len = sizeof(sin);
+    getsockname(server_socket, (struct sockaddr *)&sin, &len);
+
+    log("Server started on port " + std::to_string(ntohs(sin.sin_port)));
 
     init_commands_map();
     random = std::make_unique<MyRandom>();

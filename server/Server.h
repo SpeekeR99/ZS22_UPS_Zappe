@@ -13,6 +13,7 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/socket.h>
+#include <arpa/inet.h>
 #include <sys/un.h>
 #include <sys/ioctl.h>
 #include <netinet/in.h>
@@ -33,6 +34,10 @@ constexpr uint32_t DC_TIMEOUT_SEC = 30;
 constexpr long long int NANOSEC_IN_SEC = 1000000000L;
 /** Filepath to the log file */
 constexpr const char *LOG_FILE = "server.log";
+/** Minimum possible port number */
+constexpr uint32_t MIN_PORT = 1024;
+/** Maximum possible port number */
+constexpr uint32_t MAX_PORT = 65535;
 
 /**
  * Class that represents the server
@@ -301,9 +306,10 @@ public:
     /**
      * Constructor of the class
      * Creates the socket and binds it to the port
+     * @param ip IP address of the server
      * @param port Port to bind the socket to
      */
-    explicit Server(int port);
+    Server(const std::string &ip, int port);
 
     /**
      * Destructor of the class

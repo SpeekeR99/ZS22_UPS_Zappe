@@ -1,6 +1,7 @@
 import socket
 import select
 import datetime
+import re
 from gui.gui_scenes import *
 
 # Path to log file
@@ -270,9 +271,28 @@ if len(sys.argv) != 4:
     sys.exit(1)
 
 # Get arguments
+ip_regex = re.compile(r"(\d{1,3}\.){3}\d{1,3}")
+port_regex = re.compile(r"\d{1,5}")
+if not ip_regex.match(sys.argv[1]):
+    print("Invalid IP address")
+    sys.exit(1)
+if not port_regex.match(sys.argv[2]):
+    print("Invalid port")
+    sys.exit(1)
+
 ip = sys.argv[1]
 port = int(sys.argv[2])
 nickname = sys.argv[3]
+
+# Check IP address and port
+for i in range(4):
+    if int(ip.split(".")[i]) > 255:
+        print("Invalid IP address")
+        sys.exit(1)
+
+if port < 1024 or port > 65535:
+    print("Invalid port")
+    sys.exit(1)
 
 # Check nickname length
 if len(nickname) > 20:
