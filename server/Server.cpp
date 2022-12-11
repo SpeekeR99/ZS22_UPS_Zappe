@@ -39,7 +39,7 @@ Server::Server(const std::string &ip, int port) : game_id(0), random{} {
         exit(EXIT_FAILURE);
     }
 
-    struct sockaddr_in sin;
+    struct sockaddr_in sin{};
     socklen_t len = sizeof(sin);
     getsockname(server_socket, (struct sockaddr *)&sin, &len);
 

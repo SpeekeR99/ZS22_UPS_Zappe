@@ -118,7 +118,7 @@ private:
      * @param delim Delimeter (separator) to tokenize by (default is COMMAND_DELIMITER)
      * @return Vector of tokens (strings)
      */
-    std::vector<std::string> tokenize_buffer(char delim) const;
+    [[nodiscard]] std::vector<std::string> tokenize_buffer(char delim) const;
 
     /**
      * Function that finds an existing player by a given file descriptor
